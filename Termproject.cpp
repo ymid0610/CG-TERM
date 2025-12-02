@@ -12,6 +12,8 @@
 #include <stdio.h>
 #include "ReadObjFile.h"
 
+//test
+
 // --- 전역 변수 및 상태 관리 ---
 GLint width = 1600, height = 900;
 GLuint shaderProgramID, vertexShader, fragmentShader;
