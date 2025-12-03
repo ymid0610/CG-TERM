@@ -6,13 +6,14 @@
 #include <gl/glm/glm.hpp>
 
 // 맵의 크기와 셀 하나의 크기 정의
-#define MAP_SIZE 10
+#define MAP_SIZE 25
 #define WALL_SIZE 2.0f 
 
 class MazeMap {
 public:
     // 0: 길, 1: 벽, 2: 도착지점
     int mapData[MAP_SIZE][MAP_SIZE];
+    std::vector<int> maze;
 
     MazeMap();
     void Init();
@@ -20,4 +21,5 @@ public:
     void Draw(GLuint shaderProgramID, void (*DrawCubeFunc)(glm::mat4, glm::vec3));
     bool CheckCollision(float x, float z); // 이동하려는 위치가 벽인지 확인
     bool CheckVictory(float x, float z);   // 도착했는지 확인
+	bool GenerateMaze(int rows, int cols); // 미로 생성 함수
 };

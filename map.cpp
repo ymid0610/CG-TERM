@@ -3,32 +3,19 @@
 #include <iostream>
 #include <gl/glew.h>
 #include <gl/glm/ext.hpp>
+#include <vector>
+#include <random>
+
 
 MazeMap::MazeMap() {
     Init();
 }
 
 void MazeMap::Init() {
-    // 1은 벽, 0은 길, 2는 탈출구
-    // 간단한 'ㄷ'자 형태의 미로 예시
-    int tempMap[MAP_SIZE][MAP_SIZE] = {
-        {1, 1, 1, 1, 1, 1, 1, 1, 1, 1},
-        {1, 0, 0, 0, 1, 0, 0, 0, 0, 1},
-        {1, 0, 1, 0, 1, 0, 1, 1, 0, 1},
-        {1, 0, 1, 0, 0, 0, 1, 0, 0, 1},
-        {1, 0, 1, 1, 1, 1, 1, 0, 1, 1},
-        {1, 0, 0, 0, 0, 0, 0, 0, 0, 1},
-        {1, 1, 1, 1, 1, 0, 1, 1, 0, 1},
-        {1, 0, 0, 0, 1, 0, 1, 0, 0, 1},
-        {1, 0, 1, 0, 0, 0, 1, 0, 2, 1}, // (8,8)이 도착지점
-        {1, 1, 1, 1, 1, 1, 1, 1, 1, 1}
-    };
-
-    for (int i = 0; i < MAP_SIZE; i++) {
-        for (int j = 0; j < MAP_SIZE; j++) {
-            mapData[i][j] = tempMap[i][j];
-        }
-    }
+	GenerateMaze(MAP_SIZE, MAP_SIZE);
+	// 입구와 출구 설정
+	mapData[1][0] = 0; // 입구
+	mapData[MAP_SIZE - 2][MAP_SIZE - 1] = 2; // 출구
 }
 
 // 맵 그리기
@@ -83,4 +70,50 @@ bool MazeMap::CheckVictory(float x, float z) {
 
     if (mapData[gridZ][gridX] == 2) return true;
     return false;
+}
+
+bool MazeMap::GenerateMaze(int rows, int cols) {
+    std::random_device rd;
+    std::mt19937 gen(rd());
+
+    // maze 벡터 크기 초기화 (모든 칸을 벽으로 설정: 1)
+    maze.assign(rows * cols, 1);
+
+    std::vector<bool> visited(rows * cols, false);
+    std::vector<std::pair<int, int>> stack;
+    int dr[4] = { -1, 1, 0, 0 }, dc[4] = { 0, 0, -1, 1 };
+    auto idx = [&](int r, int c) { return r * cols + c; };
+
+    int sr = 1, sc = 1;
+    stack.emplace_back(sr, sc);
+    visited[idx(sr, sc)] = true;
+    maze[idx(sr, sc)] = 0;
+
+    while (!stack.empty()) {
+        int r = stack.back().first, c = stack.back().second;
+        std::vector<int> dirs = { 0, 1, 2, 3 };
+        std::shuffle(dirs.begin(), dirs.end(), gen);
+        bool moved = false;
+        for (int d : dirs) {
+            int nr = r + dr[d] * 2, nc = c + dc[d] * 2;
+            if (nr > 0 && nr < rows && nc > 0 && nc < cols && !visited[idx(nr, nc)]) {
+                maze[idx(r + dr[d], c + dc[d])] = 0;
+                maze[idx(nr, nc)] = 0;
+                visited[idx(nr, nc)] = true;
+                stack.emplace_back(nr, nc);
+                moved = true;
+                break;
+            }
+        }
+        if (!moved) stack.pop_back();
+    }
+
+    // maze 벡터를 mapData 2D 배열로 복사
+    for (int r = 0; r < rows; r++) {
+        for (int c = 0; c < cols; c++) {
+            mapData[r][c] = maze[idx(r, c)];
+        }
+    }
+
+    return true;
 }
