@@ -16,8 +16,16 @@
 #include "map.h"
 #include "player.h" // [핵심] 분리한 플레이어 클래스 포함
 
+// ---------- 사용자 정의 ---------- 
+#define WINDOW_TITLE "Maze Escape" 
+#define WINDOW_WIDTH 1600 
+#define WINDOW_HEIGHT 900 
+#define WINDOW_START 0, 0 
+#define TIMER_INTERVAL 16 
+#define BACKGROUND_COLOR 0.1f, 0.1f, 0.1f 
+
 // --- 전역 변수 ---
-GLint width = 1600, height = 900;
+GLint width = WINDOW_WIDTH, height = WINDOW_HEIGHT;
 GLuint shaderProgramID, vertexShader, fragmentShader;
 GLuint VAO, VBO, EBO;
 
@@ -35,6 +43,7 @@ glm::vec3 lightDirection(0.0f, 0.0f, -1.0f);
 bool keyState[256] = { false };
 
 // --- 함수 선언 ---
+void glewInitCheck();
 void MakeVertexShaders();
 void MakeFragmentShaders();
 void InitBuffers();
@@ -47,61 +56,42 @@ void Timer(int value);
 void MouseMotion(int x, int y);
 void LoadOBJ(const char* filename);
 char* filetobuf(const char* file);
+void DrawCube(glm::mat4 modelMat, glm::vec3 color); // 헬퍼 함수
+void DrawStaminaBar(); // UI 그리기 함수
 
-// 헬퍼 함수: 큐브 그리기 (Player와 MazeMap에 함수 포인터로 전달됨)
-void DrawCube(glm::mat4 modelMat, glm::vec3 color) {
-    GLint modelLoc = glGetUniformLocation(shaderProgramID, "model");
-    GLint faceColorLoc = glGetUniformLocation(shaderProgramID, "faceColor");
+// ---------- 메인 함수 ----------
+int main(int argc, char** argv) {
+    srand(static_cast<unsigned>(time(0)));
+    glutInit(&argc, argv);
+    glutInitDisplayMode(GLUT_DOUBLE | GLUT_RGBA | GLUT_DEPTH);
+    glutInitWindowPosition(WINDOW_START);
+    glutInitWindowSize(width, height);
+    glutCreateWindow(WINDOW_TITLE);
 
-    glUniformMatrix4fv(modelLoc, 1, GL_FALSE, glm::value_ptr(modelMat));
-    glUniform3f(faceColorLoc, color.r, color.g, color.b);
+    glewInitCheck();
 
-    if (model.face_count > 0)
-        glDrawElements(GL_TRIANGLES, model.face_count * 3, GL_UNSIGNED_INT, 0);
-}
+    MakeVertexShaders();
+    MakeFragmentShaders();
+    shaderProgramID = MakeShaderProgram();
 
-// UI(스테미너 바) 그리기
-void DrawStaminaBar() {
-    glDisable(GL_DEPTH_TEST); // UI는 맨 위에 그려야 함
+    LoadOBJ("cube.obj");
 
-    // 2D 렌더링을 위한 직교 투영 설정
-    glm::mat4 ortho = glm::ortho(0.0f, (float)width, 0.0f, (float)height, -1.0f, 1.0f);
-    glm::mat4 viewUI = glm::mat4(1.0f);
+    InitBuffers();
 
-    GLint viewLoc = glGetUniformLocation(shaderProgramID, "view");
-    GLint projLoc = glGetUniformLocation(shaderProgramID, "proj");
-    glUniformMatrix4fv(viewLoc, 1, GL_FALSE, glm::value_ptr(viewUI));
-    glUniformMatrix4fv(projLoc, 1, GL_FALSE, glm::value_ptr(ortho));
+    // 초기화 완료 후 메인 루프 시작
+    glutDisplayFunc(DrawScene);
+    glutReshapeFunc(Reshape);
+    glutKeyboardFunc(Keyboard);
+    glutKeyboardUpFunc(KeyboardUp);
+    glutTimerFunc(16, Timer, 0);
+    glutPassiveMotionFunc(MouseMotion);
 
-    // UI에는 조명 효과 끄기
-    glUniform1i(glGetUniformLocation(shaderProgramID, "lightOn"), 0);
+    // 마우스 커서 숨기기 및 중앙 이동
+    glutSetCursor(GLUT_CURSOR_NONE);
+    glutWarpPointer(width / 2, height / 2);
 
-    // [배경 바]
-    float barWidth = 300.0f;
-    float barHeight = 20.0f;
-    float xPos = 50.0f;
-    float yPos = height - 50.0f;
-
-    glm::mat4 bgModel = glm::translate(glm::mat4(1.0f), glm::vec3(xPos + barWidth / 2, yPos, 0.0f));
-    bgModel = glm::scale(bgModel, glm::vec3(barWidth, barHeight, 1.0f));
-    DrawCube(bgModel, glm::vec3(0.3f, 0.3f, 0.3f));
-
-    // [스테미너 게이지] - Player 객체의 데이터를 가져와 사용
-    float ratio = player.currentStamina / player.maxStamina;
-    float currentBarWidth = barWidth * ratio;
-
-    glm::mat4 fgModel = glm::translate(glm::mat4(1.0f), glm::vec3(xPos + currentBarWidth / 2, yPos, 0.0f));
-    fgModel = glm::scale(fgModel, glm::vec3(currentBarWidth, barHeight, 1.0f));
-
-    // 색상 결정 (초록 -> 노랑 -> 빨강)
-    glm::vec3 barColor;
-    if (ratio > 0.5f) barColor = glm::vec3(0.0f, 1.0f, 0.0f);
-    else if (ratio > 0.2f) barColor = glm::vec3(1.0f, 1.0f, 0.0f);
-    else barColor = glm::vec3(1.0f, 0.0f, 0.0f);
-
-    DrawCube(fgModel, barColor);
-
-    glEnable(GL_DEPTH_TEST); // 3D 렌더링을 위해 다시 켜기
+    glutMainLoop();
+    return 0;
 }
 
 void DrawScene() {
@@ -201,10 +191,6 @@ void Keyboard(unsigned char key, int x, int y) {
     }
 }
 
-void KeyboardUp(unsigned char key, int x, int y) {
-    keyState[key] = false;
-}
-
 void MouseMotion(int x, int y) {
     // 마우스 처리를 Player 클래스에 위임
     player.ProcessMouse(x, y, width, height);
@@ -216,14 +202,85 @@ void MouseMotion(int x, int y) {
     }
 }
 
+void KeyboardUp(unsigned char key, int x, int y) {
+    keyState[key] = false;
+}
+
 void Reshape(int w, int h) {
     glViewport(0, 0, w, h);
     width = w;
     height = h;
 }
 
-// --- 아래는 셰이더 및 파일 로딩 관련 (기존 코드 유지) ---
+// 헬퍼 함수: 큐브 그리기 (Player와 MazeMap에 함수 포인터로 전달됨)
+void DrawCube(glm::mat4 modelMat, glm::vec3 color) {
+    GLint modelLoc = glGetUniformLocation(shaderProgramID, "model");
+    GLint faceColorLoc = glGetUniformLocation(shaderProgramID, "faceColor");
 
+    glUniformMatrix4fv(modelLoc, 1, GL_FALSE, glm::value_ptr(modelMat));
+    glUniform3f(faceColorLoc, color.r, color.g, color.b);
+
+    if (model.face_count > 0)
+        glDrawElements(GL_TRIANGLES, model.face_count * 3, GL_UNSIGNED_INT, 0);
+}
+
+// UI(스테미너 바) 그리기
+void DrawStaminaBar() {
+    glDisable(GL_DEPTH_TEST); // UI는 맨 위에 그려야 함
+
+    // 2D 렌더링을 위한 직교 투영 설정
+    glm::mat4 ortho = glm::ortho(0.0f, (float)width, 0.0f, (float)height, -1.0f, 1.0f);
+    glm::mat4 viewUI = glm::mat4(1.0f);
+
+    GLint viewLoc = glGetUniformLocation(shaderProgramID, "view");
+    GLint projLoc = glGetUniformLocation(shaderProgramID, "proj");
+    glUniformMatrix4fv(viewLoc, 1, GL_FALSE, glm::value_ptr(viewUI));
+    glUniformMatrix4fv(projLoc, 1, GL_FALSE, glm::value_ptr(ortho));
+
+    // UI에는 조명 효과 끄기
+    glUniform1i(glGetUniformLocation(shaderProgramID, "lightOn"), 0);
+
+    // [배경 바]
+    float barWidth = 300.0f;
+    float barHeight = 20.0f;
+    float xPos = 50.0f;
+    float yPos = height - 50.0f;
+
+    glm::mat4 bgModel = glm::translate(glm::mat4(1.0f), glm::vec3(xPos + barWidth / 2, yPos, 0.0f));
+    bgModel = glm::scale(bgModel, glm::vec3(barWidth, barHeight, 1.0f));
+    DrawCube(bgModel, glm::vec3(0.3f, 0.3f, 0.3f));
+
+    // [스테미너 게이지] - Player 객체의 데이터를 가져와 사용
+    float ratio = player.currentStamina / player.maxStamina;
+    float currentBarWidth = barWidth * ratio;
+
+    glm::mat4 fgModel = glm::translate(glm::mat4(1.0f), glm::vec3(xPos + currentBarWidth / 2, yPos, 0.0f));
+    fgModel = glm::scale(fgModel, glm::vec3(currentBarWidth, barHeight, 1.0f));
+
+    // 색상 결정 (초록 -> 노랑 -> 빨강)
+    glm::vec3 barColor;
+    if (ratio > 0.5f) barColor = glm::vec3(0.0f, 1.0f, 0.0f);
+    else if (ratio > 0.2f) barColor = glm::vec3(1.0f, 1.0f, 0.0f);
+    else barColor = glm::vec3(1.0f, 0.0f, 0.0f);
+
+    DrawCube(fgModel, barColor);
+
+    glEnable(GL_DEPTH_TEST); // 3D 렌더링을 위해 다시 켜기
+}
+
+// ---------- 초기화 함수 정의 ----------
+void glewInitCheck() {
+    glewExperimental = GL_TRUE;
+    if (glewInit() != GLEW_OK) {
+        std::cerr << "Failed to initialize GLEW" << std::endl; exit(-1);
+    }
+}
+
+void LoadOBJ(const char* filename) {
+	read_obj_file(filename, &model);
+}
+
+//  ---------- 파일을 버퍼로 읽어들이는 함수 ----------
 char* filetobuf(const char* file) {
     FILE* fptr;
     fopen_s(&fptr, file, "rb");
@@ -238,10 +295,7 @@ char* filetobuf(const char* file) {
     return buf;
 }
 
-void LoadOBJ(const char* filename) {
-    read_obj_file(filename, &model);
-}
-
+// ---------- 셰이더 생성 함수 ----------
 void MakeVertexShaders() {
     GLchar* vertexSource = filetobuf("TPvertex.glsl");
     vertexShader = glCreateShader(GL_VERTEX_SHADER);
@@ -297,41 +351,4 @@ void InitBuffers() {
         glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(GLfloat), (void*)0);
         glEnableVertexAttribArray(0);
     }
-}
-
-int main(int argc, char** argv) {
-    srand(static_cast<unsigned>(time(0)));
-    glutInit(&argc, argv);
-    glutInitDisplayMode(GLUT_DOUBLE | GLUT_RGBA | GLUT_DEPTH);
-    glutInitWindowPosition(100, 100);
-    glutInitWindowSize(width, height);
-    glutCreateWindow("Maze Game");
-
-    glewExperimental = GL_TRUE;
-    if (glewInit() != GLEW_OK) {
-        std::cerr << "GLEW 초기화 실패" << std::endl;
-        return -1;
-    }
-
-    MakeVertexShaders();
-    MakeFragmentShaders();
-    shaderProgramID = MakeShaderProgram();
-
-    LoadOBJ("cube.obj");
-    InitBuffers();
-
-    // 초기화 완료 후 메인 루프 시작
-    glutDisplayFunc(DrawScene);
-    glutReshapeFunc(Reshape);
-    glutKeyboardFunc(Keyboard);
-    glutKeyboardUpFunc(KeyboardUp);
-    glutTimerFunc(16, Timer, 0);
-    glutPassiveMotionFunc(MouseMotion);
-
-    // 마우스 커서 숨기기 및 중앙 이동
-    glutSetCursor(GLUT_CURSOR_NONE);
-    glutWarpPointer(width / 2, height / 2);
-
-    glutMainLoop();
-    return 0;
 }
