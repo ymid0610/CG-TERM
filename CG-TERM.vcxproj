@@ -128,13 +128,16 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClCompile Include="Termproject.cpp" />
+    <ClCompile Include="main.cpp" />
+    <ClCompile Include="map.cpp" />
+    <ClCompile Include="player.cpp" />
   </ItemGroup>
   <ItemGroup>
     <None Include="TPfragment.glsl" />
     <None Include="TPvertex.glsl" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="map.h" />
     <ClInclude Include="ReadObjFile.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />

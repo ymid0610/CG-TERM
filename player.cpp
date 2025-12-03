@@ -11,8 +11,7 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include "ReadObjFile.h"
-
-//test
+#include "Map.h" // [추가] 미로 헤더 파일 포함
 
 // --- 전역 변수 및 상태 관리 ---
 GLint width = 1600, height = 900;
@@ -20,15 +19,18 @@ GLuint shaderProgramID, vertexShader, fragmentShader;
 GLuint VAO, VBO, EBO;
 
 Model model; // cube.obj 데이터 저장
+MazeMap maze; // [추가] 미로 객체 생성
+bool isGameClear = false; // [추가] 게임 클리어 상태
 
 // 캐릭터 위치 및 회전
-glm::vec3 stevePos = glm::vec3(0.0f, -1.0f, 0.0f);
+// [수정] 시작 위치를 (0,0,0)에서 미로의 빈 공간인 (1,1) 좌표(2.0, -1.0, 2.0)로 변경
+glm::vec3 stevePos = glm::vec3(2.0f, -1.0f, 2.0f);
 float steveRotY = 180.0f; // 등을 보이게 설정
 
 // [수정] 카메라 관련 변수
 float cameraAngle = 0.0f;
 float cameraDistance = 3.0f;
-int viewMode = 1; // 1: 1인칭, 3: 3인칭 (기본값 1)
+int viewMode = 3; // 1: 1인칭, 3: 3인칭 (기본값 3으로 변경하여 캐릭터 보이게 함)
 
 // 애니메이션 상태
 enum AnimState { IDLE, WALK, RUN };
@@ -108,8 +110,6 @@ void MouseMotion(int x, int y) {
         if (xOffset == 0 && yOffset == 0) return;
 
         // [수정] 각도 업데이트 방향 반전
-        // 기존: cameraAngle += xOffset; (오른쪽 이동 시 왼쪽 회전)
-        // 변경: cameraAngle -= xOffset; (오른쪽 이동 시 오른쪽 회전)
         cameraAngle -= xOffset;
 
         pitch -= yOffset;       // 상하 회전 (Pitch)
@@ -137,7 +137,7 @@ int main(int argc, char** argv) {
     glutInitDisplayMode(GLUT_DOUBLE | GLUT_RGBA | GLUT_DEPTH);
     glutInitWindowPosition(100, 100);
     glutInitWindowSize(width, height);
-    glutCreateWindow("TP");
+    glutCreateWindow("Maze Game"); // 윈도우 이름 변경
 
     glewExperimental = GL_TRUE;
     if (glewInit() != GLEW_OK) {
@@ -152,6 +152,9 @@ int main(int argc, char** argv) {
     LoadOBJ("cube.obj");
     InitBuffers();
 
+    // [추가] 미로 초기화 (생성자에서 이미 호출되지만 명시적으로 확인)
+    // maze.Init(); 
+
     glutDisplayFunc(DrawScene);
     glutReshapeFunc(Reshape);
     glutKeyboardFunc(Keyboard);
@@ -165,7 +168,6 @@ int main(int argc, char** argv) {
     glutPassiveMotionFunc(MouseMotion);
 
     // [추가] 마우스 커서 숨기기 (게임처럼)
-    // 필요하다면 특정 키(예: ESC)를 눌렀을 때 다시 보이게 할 수도 있음
     glutSetCursor(GLUT_CURSOR_NONE);
 
     // 마우스를 프로그램 시작 시 중앙으로 이동
@@ -204,7 +206,6 @@ void DrawSteve() {
     // --- 팔은 1인칭/3인칭 모두 그립니다 ---
 
     // 3. 왼쪽 팔 (Left Arm) - 항상 그림
-    // (1인칭에서 팔이 흔들리는 모습을 보기 위해 조건문 없이 그립니다)
     {
         glm::mat4 lArmMat = glm::translate(bodyMat, glm::vec3(-0.35f, 0.35f, 0.0f));
         lArmMat = glm::rotate(lArmMat, glm::radians(armAngle), glm::vec3(1.0f, 0.0f, 0.0f));
@@ -214,13 +215,11 @@ void DrawSteve() {
     }
 
     // 4. 오른쪽 팔 (Right Arm) - 항상 그림
-    // [중요] 숨어있을 때는 문 틈 시야 확보를 위해 팔을 내림
     glm::mat4 rArmMat = glm::translate(bodyMat, glm::vec3(0.35f, 0.35f, 0.0f));
 
     float currentRArmAngle = -armAngle;
 
     // 손전등을 켰거나 1인칭일 때 팔을 들어올림
-    // 단, 숨어있을 때(!isHidden)는 들어올리지 않음!
     if ((isFlashlightOn || viewMode == 1) && !isHidden) {
         currentRArmAngle = -90.0f + (armAngle * 0.1f);
         if (viewMode == 1) {
@@ -267,9 +266,10 @@ void DrawSteve() {
 }
 
 void DrawWardrobe() {
-    // [원상복구] 옷장 위치를 다시 원래대로 (벽에서 떨어진 위치)
-    float xFront = 4.0f;  // 옷장 앞면
-    float xBack = 5.5f;   // 옷장 뒷면
+    // 옷장 그리기 함수 (미로 게임에서는 사용하지 않음)
+    // 기존 코드 유지
+    float xFront = 4.0f;
+    float xBack = 5.5f;
     float zWidth = 1.5f;
     float yBase = -0.25f;
 
@@ -277,20 +277,6 @@ void DrawWardrobe() {
     glm::vec3 lightWood = glm::vec3(0.45f, 0.3f, 0.1f);
     glm::vec3 gold = glm::vec3(0.8f, 0.7f, 0.0f);
 
-    // [원상복구] 상호작용 범위 시각화 (x=3.25 근처)
-    glEnable(GL_BLEND);
-    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-
-    // 원래 위치인 3.25로 되돌림
-    glm::mat4 zone = glm::translate(glm::mat4(1.0f), glm::vec3(3.25f, -1.95f, 0.0f));
-    glm::mat4 zoneScale = glm::scale(zone, glm::vec3(1.5f, 0.01f, 6.0f));
-    DrawCube(zoneScale, glm::vec3(0.0f, 1.0f, 0.0f));
-
-    glDisable(GL_BLEND);
-
-    // --- (아래는 좌표 변수만 적용되므로 로직 동일) ---
-
-    // 몸통
     glm::mat4 back = glm::translate(glm::mat4(1.0f), glm::vec3(xBack, yBase, 0.0f));
     glm::mat4 backScale = glm::scale(back, glm::vec3(0.1f, 3.5f, zWidth * 2.0f));
     DrawCube(backScale, darkWood);
@@ -338,62 +324,52 @@ void DrawStaminaBar() {
     glDisable(GL_DEPTH_TEST);
 
     // 2. 직교 투영(Orthographic) 행렬 생성
-    // 3D 원근감이 아닌, 2D 평면 좌표계(0 ~ width, 0 ~ height)를 사용
     glm::mat4 ortho = glm::ortho(0.0f, (float)width, 0.0f, (float)height, -1.0f, 1.0f);
-    glm::mat4 viewUI = glm::mat4(1.0f); // 뷰 행렬은 기본값(이동 없음)
+    glm::mat4 viewUI = glm::mat4(1.0f);
 
-    // 쉐이더에 2D용 행렬 전달
     GLint viewLoc = glGetUniformLocation(shaderProgramID, "view");
     GLint projLoc = glGetUniformLocation(shaderProgramID, "proj");
     glUniformMatrix4fv(viewLoc, 1, GL_FALSE, glm::value_ptr(viewUI));
     glUniformMatrix4fv(projLoc, 1, GL_FALSE, glm::value_ptr(ortho));
 
-    // 조명 끄기 (UI는 빛의 영향을 받지 않아야 선명함)
+    // 조명 끄기
     glUniform1i(glGetUniformLocation(shaderProgramID, "lightOn"), 0);
-
 
     // --- [배경 바 (회색)] ---
     float barWidth = 300.0f;
     float barHeight = 20.0f;
-    float xPos = 50.0f;           // 왼쪽 여백
-    float yPos = height - 50.0f;  // 위쪽 여백 (화면 높이 - 50)
+    float xPos = 50.0f;
+    float yPos = height - 50.0f;
 
-    // 위치: 바의 중심점 계산 (DrawCube는 중심 기준 1x1 크기임)
     glm::mat4 bgModel = glm::translate(glm::mat4(1.0f), glm::vec3(xPos + barWidth / 2, yPos, 0.0f));
     bgModel = glm::scale(bgModel, glm::vec3(barWidth, barHeight, 1.0f));
-    DrawCube(bgModel, glm::vec3(0.3f, 0.3f, 0.3f)); // 회색 배경
-
+    DrawCube(bgModel, glm::vec3(0.3f, 0.3f, 0.3f));
 
     // --- [스테미너 바 (녹색)] ---
-    float ratio = currentStamina / maxStamina; // 현재 비율 (0.0 ~ 1.0)
-    float currentBarWidth = barWidth * ratio;  // 비율에 따른 너비
+    float ratio = currentStamina / maxStamina;
+    float currentBarWidth = barWidth * ratio;
 
-    // 위치: 줄어들 때 왼쪽 정렬이 되도록 중심점 이동
-    // (배경의 왼쪽 끝 + 현재 너비의 절반)
     glm::mat4 fgModel = glm::translate(glm::mat4(1.0f), glm::vec3(xPos + currentBarWidth / 2, yPos, 0.0f));
     fgModel = glm::scale(fgModel, glm::vec3(currentBarWidth, barHeight, 1.0f));
 
-    // 색상: 스테미너가 적으면 붉은색으로 변하게 연출 (선택사항)
     glm::vec3 barColor;
-    if (ratio > 0.5f) barColor = glm::vec3(0.0f, 1.0f, 0.0f); // 녹색
-    else if (ratio > 0.2f) barColor = glm::vec3(1.0f, 1.0f, 0.0f); // 노란색
-    else barColor = glm::vec3(1.0f, 0.0f, 0.0f); // 빨간색
+    if (ratio > 0.5f) barColor = glm::vec3(0.0f, 1.0f, 0.0f);
+    else if (ratio > 0.2f) barColor = glm::vec3(1.0f, 1.0f, 0.0f);
+    else barColor = glm::vec3(1.0f, 0.0f, 0.0f);
 
     DrawCube(fgModel, barColor);
 
-    // 3. 깊이 테스트 다시 활성화 (다음 프레임 3D 렌더링을 위해)
     glEnable(GL_DEPTH_TEST);
 }
 
 void DrawScene() {
-    // 1. 기본 설정
     glEnable(GL_DEPTH_TEST);
     glClearColor(0.1f, 0.1f, 0.1f, 1.0f);
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
     glUseProgram(shaderProgramID);
     glBindVertexArray(VAO);
 
-    // 2. 카메라 설정
+    // 카메라 설정
     glm::vec3 cameraPos;
     glm::vec3 cameraTarget;
     glm::vec3 cameraUp = glm::vec3(0.0f, 1.0f, 0.0f);
@@ -434,50 +410,37 @@ void DrawScene() {
     glUniform1f(cutOffLoc, glm::cos(glm::radians(25.0f)));
 
     DrawSteve();
-    DrawWardrobe();
+    // DrawWardrobe(); // [수정] 옷장은 주석 처리
 
-    // --- [방 크기 확장: 10x10 -> 20x20] ---
-    glm::vec3 wallColor = glm::vec3(0.6f, 0.6f, 0.6f);
+    // [추가] 미로 렌더링
+    maze.Draw(shaderProgramID, DrawCube);
 
-    // (1) 앞쪽 벽 (Front) - z = -10
-    glm::mat4 frontWall = glm::translate(glm::mat4(1.0f), glm::vec3(0.0f, 0.0f, -10.0f));
-    frontWall = glm::scale(frontWall, glm::vec3(20.0f, 10.0f, 1.0f));
-    DrawCube(frontWall, wallColor);
-
-    // (2) 뒤쪽 벽 (Back) - z = 10
-    glm::mat4 backWall = glm::translate(glm::mat4(1.0f), glm::vec3(0.0f, 0.0f, 10.0f));
-    backWall = glm::scale(backWall, glm::vec3(20.0f, 10.0f, 1.0f));
-    DrawCube(backWall, wallColor);
-
-    // (3) 왼쪽 벽 (Left) - x = -10
-    glm::mat4 leftWall = glm::translate(glm::mat4(1.0f), glm::vec3(-10.0f, 0.0f, 0.0f));
-    leftWall = glm::scale(leftWall, glm::vec3(1.0f, 10.0f, 20.0f));
-    DrawCube(leftWall, wallColor);
-
-    // (4) 오른쪽 벽 (Right) - x = 10
-    glm::mat4 rightWall = glm::translate(glm::mat4(1.0f), glm::vec3(10.0f, 0.0f, 0.0f));
-    rightWall = glm::scale(rightWall, glm::vec3(1.0f, 10.0f, 20.0f));
-    DrawCube(rightWall, wallColor);
-
-    // (5) 바닥 (Floor)
-    glm::mat4 floorMat = glm::translate(glm::mat4(1.0f), glm::vec3(0.0f, -2.0f, 0.0f));
+    // [수정] 바닥 (Floor) - 미로 크기만큼 확장
+    // 맵 크기(MAP_SIZE 10 * WALL_SIZE 2.0) = 20.0f
+    glm::mat4 floorMat = glm::translate(glm::mat4(1.0f), glm::vec3(10.0f, -2.0f, 10.0f));
     floorMat = glm::scale(floorMat, glm::vec3(20.0f, 0.1f, 20.0f));
     DrawCube(floorMat, glm::vec3(0.3f, 0.35f, 0.3f));
 
-    // (6) 천장 (Ceiling)
-    glm::mat4 ceilMat = glm::translate(glm::mat4(1.0f), glm::vec3(0.0f, 3.0f, 0.0f));
+    // [수정] 천장 (Ceiling) - 미로 크기만큼 확장
+    glm::mat4 ceilMat = glm::translate(glm::mat4(1.0f), glm::vec3(10.0f, 3.0f, 10.0f));
     ceilMat = glm::scale(ceilMat, glm::vec3(20.0f, 0.1f, 20.0f));
     DrawCube(ceilMat, glm::vec3(0.4f, 0.4f, 0.4f));
 
-    // [추가됨] UI(스테미너 바) 그리기 - 반드시 3D 물체를 다 그린 뒤에 호출!
     DrawStaminaBar();
 
     glutSwapBuffers();
 }
 
 void Timer(int value) {
+    // [추가] 게임 클리어 시 멈춤
+    if (isGameClear) {
+        glutPostRedisplay();
+        glutTimerFunc(16, Timer, 0);
+        return;
+    }
+
     // ==========================================================
-    // 1. 캐릭터 이동 & 스테미너 로직
+    // 1. 캐릭터 이동 & 스테미너 로직 (충돌 처리 추가)
     // ==========================================================
     if (hidingState == 0) {
         float inputZ = 0.0f; float inputX = 0.0f;
@@ -489,132 +452,64 @@ void Timer(int value) {
         bool isMoving = (inputX != 0.0f || inputZ != 0.0f);
 
         if (isMoving) {
-            // 대각선 이동 시 속도 보정
             float length = sqrt(inputX * inputX + inputZ * inputZ);
             if (length > 0) { inputX /= length; inputZ /= length; }
 
-            // 카메라 각도에 따른 이동 방향 계산
             float rad = cameraAngle;
             float moveDirX = inputX * cos(rad) + inputZ * sin(rad);
             float moveDirZ = -inputX * sin(rad) + inputZ * cos(rad);
 
-            // [수정된 달리기 및 스테미너 로직]
-            float currentSpeed = 0.1f; // 기본 걷기 속도
+            float currentSpeed = 0.1f;
 
-            // 조건 1: 스페이스바 누름
-            // 조건 2: 지친 상태(isExhausted)가 아님
-            // -> 이럴 때만 달리기 가능
             if (keyState[' '] && !isExhausted) {
                 currentSpeed = 0.15f;
                 currentAnim = RUN;
-
-                // 달리는 중에는 스테미너 감소
                 currentStamina -= 1.0f;
-
-                // 스테미너가 바닥나면 지침 상태 발동
                 if (currentStamina <= 0.0f) {
                     currentStamina = 0.0f;
-                    isExhausted = true; // 이제 일정량 찰 때까지 못 달림
+                    isExhausted = true;
                 }
             }
             else {
-                // 스페이스바를 안 눌렀거나, 지쳐서 못 달리는 경우 -> 걷기
                 currentAnim = WALK;
-
-                // 걸을 때는 스테미너가 천천히 회복됨
-                if (currentStamina < maxStamina) {
-                    currentStamina += 0.2f;
-                }
+                if (currentStamina < maxStamina) currentStamina += 0.2f;
             }
 
-            // 위치 적용
-            stevePos.x += moveDirX * currentSpeed;
-            stevePos.z += moveDirZ * currentSpeed;
+            // [수정] 충돌 처리 및 위치 업데이트
+            float nextX = stevePos.x + moveDirX * currentSpeed;
+            float nextZ = stevePos.z + moveDirZ * currentSpeed;
+
+            // X축, Z축 분리 검사 (Sliding 효과)
+            if (!maze.CheckCollision(nextX, stevePos.z)) {
+                stevePos.x = nextX;
+            }
+            if (!maze.CheckCollision(stevePos.x, nextZ)) {
+                stevePos.z = nextZ;
+            }
+
+            // [추가] 승리 조건 체크
+            if (maze.CheckVictory(stevePos.x, stevePos.z)) {
+                std::cout << "Game Clear!" << std::endl;
+                isGameClear = true;
+            }
         }
         else {
-            // 움직이지 않을 때(IDLE)
             currentAnim = IDLE;
-
-            // 멈춰있을 때는 스테미너가 천천히 회복됨
-            if (currentStamina < maxStamina) {
-                currentStamina += 0.2f;
-            }
-        }
-    }
-    else {
-        // 숨어있을 때 (움직임 불가)
-        currentAnim = IDLE;
-        // 숨어있을 때도 회복
-        if (currentStamina < maxStamina) {
-            currentStamina += 1.0f;
+            if (currentStamina < maxStamina) currentStamina += 0.2f;
         }
     }
 
-    // [중요] 지침 상태 해제 로직
-    // 지친 상태(true)라면, 스테미너가 20 이상 찼을 때만 다시 달릴 수 있게 해제
+    // 지침 상태 해제 로직
     if (isExhausted && currentStamina > 20.0f) {
         isExhausted = false;
     }
-
-    // 스테미너 최대치 고정
     if (currentStamina > maxStamina) currentStamina = maxStamina;
 
-    // 캐릭터 회전 (카메라 방향 등지기)
+    // 캐릭터 회전
     steveRotY = glm::degrees(cameraAngle) + 180.0f;
 
-
     // ==========================================================
-    // 2. 옷장 시퀀스 로직
-    // ==========================================================
-    float targetAngle = 0.0f;
-    float doorSpeed = 5.0f;
-
-    switch (hidingState) {
-    case 0: // 평상시
-        targetAngle = 0.0f;
-        break;
-
-    case 1: // 들어가는 중
-        targetAngle = 90.0f;
-        if (currentDoorAngle >= 90.0f) {
-            // 옷장 안쪽 좌표
-            stevePos = glm::vec3(4.8f, -1.0f, 0.0f);
-            cameraAngle = glm::radians(90.0f);
-            pitch = 0.0f;
-            viewMode = 1;
-            isFlashlightOn = false;
-            hidingState = 2;
-        }
-        break;
-
-    case 2: // 숨어있음
-        targetAngle = 25.0f;
-        viewMode = 1;
-        stevePos = glm::vec3(4.8f, -1.0f, 0.0f); // 위치 고정
-        break;
-
-    case 3: // 나오는 중
-        targetAngle = 90.0f;
-        if (currentDoorAngle >= 90.0f) {
-            // 옷장 앞 좌표
-            stevePos = glm::vec3(3.0f, -1.0f, 0.0f);
-            hidingState = 0;
-        }
-        break;
-    }
-
-    // 문 애니메이션
-    if (abs(currentDoorAngle - targetAngle) > 1.0f) {
-        if (currentDoorAngle < targetAngle) currentDoorAngle += doorSpeed;
-        else currentDoorAngle -= doorSpeed;
-    }
-    else {
-        currentDoorAngle = targetAngle;
-    }
-
-
-    // ==========================================================
-    // 3. 팔/다리 애니메이션 계산
+    // 애니메이션 로직
     // ==========================================================
     float speed = 0.0f; float amplitude = 0.0f;
 
@@ -649,8 +544,9 @@ void Keyboard(unsigned char key, int x, int y) {
     case 'K': if (cameraDistance > 2.0f) cameraDistance -= 0.5f; break;
 
     case 'f':
+        // 미로 게임에서는 숨기 기능 일단 비활성화 (필요하면 복구)
+        /*
         if (hidingState == 0) {
-            // [원상복구] 상호작용 범위: x > 2.5
             if (stevePos.x > 2.5f && abs(stevePos.z) < 3.0f) {
                 hidingState = 1;
             }
@@ -658,13 +554,15 @@ void Keyboard(unsigned char key, int x, int y) {
         else if (hidingState == 2) {
             hidingState = 3;
         }
+        */
         break;
 
     case 'q': exit(0); break;
     }
 }
 
-// ... 나머지 함수들 (유지) ...
+// ... 나머지 함수들 (Reshape, LoadOBJ 등은 원본 유지) ...
+
 void Reshape(int w, int h) {
     glViewport(0, 0, w, h);
     width = w;

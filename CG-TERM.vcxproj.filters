@@ -15,7 +15,13 @@
     </Filter>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="Termproject.cpp">
+    <ClCompile Include="player.cpp">
+      <Filter>소스 파일</Filter>
+    </ClCompile>
+    <ClCompile Include="main.cpp">
+      <Filter>소스 파일</Filter>
+    </ClCompile>
+    <ClCompile Include="map.cpp">
       <Filter>소스 파일</Filter>
     </ClCompile>
   </ItemGroup>
@@ -29,6 +35,9 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="ReadObjFile.h">
+      <Filter>헤더 파일</Filter>
+    </ClInclude>
+    <ClInclude Include="map.h">
       <Filter>헤더 파일</Filter>
     </ClInclude>
   </ItemGroup>
