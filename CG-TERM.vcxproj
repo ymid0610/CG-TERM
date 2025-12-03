@@ -131,6 +131,7 @@
     <ClCompile Include="main.cpp" />
     <ClCompile Include="map.cpp" />
     <ClCompile Include="player.cpp" />
+    <ClCompile Include="wardrobe.cpp" />
   </ItemGroup>
   <ItemGroup>
     <None Include="TPfragment.glsl" />
@@ -140,6 +141,7 @@
     <ClInclude Include="map.h" />
     <ClInclude Include="player.h" />
     <ClInclude Include="ReadObjFile.h" />
+    <ClInclude Include="wardrobe.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
