@@ -7,7 +7,7 @@
 
 // 맵의 크기와 셀 하나의 크기 정의
 #define MAP_SIZE 25
-#define WALL_SIZE 2.0f 
+#define WALL_SIZE 4asdasdsd
 
 class MazeMap {
 public:
