@@ -16,6 +16,7 @@
 #include "map.h"
 #include "player.h"
 #include "wardrobe.h" // [추가] 옷장 헤더 포함
+#include "TestGhost.h"
 
 // --- 전역 변수 ---
 GLint width = 1600, height = 900;
@@ -29,7 +30,10 @@ Player player;   // 플레이어 객체
 
 // [추가] 옷장 객체 생성 (원하는 좌표 입력: x, z)
 // 맵의 빈 공간 좌표를 잘 확인해서 넣어주세요. (예: 10.0, 4.0)
-Wardrobe wardrobe(2.0f, 5.0f);
+Wardrobe wardrobe(5.0f, 5.0f);
+
+//test
+Ghost ghost(glm::vec3(3.0f, -1.0f, 5.0f));
 
 bool isGameClear = false;
 
@@ -152,6 +156,9 @@ void DrawScene() {
     // [추가] 3. 옷장 그리기
     wardrobe.Draw(shaderProgramID, model);
 
+    // test
+    ghost.Draw(shaderProgramID, model);
+
     // 4. 바닥 & 천장
     glm::mat4 floorMat = glm::translate(glm::mat4(1.0f), glm::vec3(10.0f, -2.0f, 10.0f));
     floorMat = glm::scale(floorMat, glm::vec3(20.0f, 0.1f, 20.0f));
@@ -197,6 +204,13 @@ void Timer(int value) {
         player.viewMode,
         player.isFlashlightOn
     );
+
+    // ==========================================================
+    // [추가] 유령(Ghost) 업데이트
+    // 플레이어의 위치(player.pos)를 타겟으로 주고, 충돌 체크용 맵(maze)을 넘깁니다.
+    // ==========================================================
+    ghost.Update(player.pos, maze);
+
 
     // 승리 조건 체크
     if (maze.CheckVictory(player.pos.x, player.pos.z)) {
