@@ -29,7 +29,7 @@ void MazeMap::Draw(GLuint shaderProgramID, void (*DrawCubeFunc)(glm::mat4, glm::
                 float worldZ = z * WALL_SIZE;
 
                 modelMat = glm::translate(modelMat, glm::vec3(worldX, 0.0f, worldZ));
-                modelMat = glm::scale(modelMat, glm::vec3(WALL_SIZE, 3.0f, WALL_SIZE)); // 높이 3짜리 벽
+                modelMat = glm::scale(modelMat, glm::vec3(WALL_SIZE, WALL_HEIGHT, WALL_SIZE)); // 높이 3짜리 벽
 
                 // 회색 벽
                 DrawCubeFunc(modelMat, glm::vec3(0.5f, 0.5f, 0.5f));

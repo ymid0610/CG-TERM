@@ -1,6 +1,9 @@
 #include "TestGhost.h"
 #include <iostream>
 #include <cmath> // sin, cos, atan2
+#include <queue>
+#include <unordered_map>
+#include <random>
 
 Ghost::Ghost(glm::vec3 startPos) {
     pos = startPos;
@@ -42,23 +45,46 @@ void Ghost::DrawBox(GLuint shaderID, const Model& model, glm::mat4 modelMat, glm
     glDisable(GL_BLEND);
 }
 
-void Ghost::Update(glm::vec3 targetPos, MazeMap& maze) {
-    // 1. 플레이어 추적 (벽 충돌 체크 포함)
-    glm::vec3 dir = targetPos - pos;
-    dir.y = 0;
-    float distance = glm::length(dir);
+void Ghost::Update(glm::vec3 playerPos, MazeMap& maze) {
 
-    if (distance > 0.8f) {
-        dir = glm::normalize(dir);
-        float nextX = pos.x + dir.x * speed;
-        float nextZ = pos.z + dir.z * speed;
-
-        // 벽 통과를 원하면 아래 if문을 주석 처리하세요
-        if (!maze.CheckCollision(nextX, pos.z)) pos.x = nextX;
-        if (!maze.CheckCollision(pos.x, nextZ)) pos.z = nextZ;
-
-        rotY = glm::degrees(atan2(dir.x, dir.z));
+    // 플레이어와 충돌 체크
+    if (IsCollideWithPlayer(pos, playerPos)) {
+        pos = GetRandomPathPosition(maze, MAP_SIZE, baseHeight);
+        floatTime = 0.0f; // 애니메이션 초기화(선택)
+        wobbleTime = 0.0f;
+        return; // 이동 로직 생략
     }
+    
+	// 1. 플레이어 쪽으로 이동
+    int mapSize = MAP_SIZE;
+    auto path = FindPath(maze, pos, playerPos, mapSize);
+    if (!path.empty()) {
+        int nextIdx = (path.size() > 1) ? 1 : 0;
+        int nextGridZ = path[nextIdx].first;
+        int nextGridX = path[nextIdx].second;
+        float targetX = nextGridX * WALL_SIZE;
+        float targetZ = nextGridZ * WALL_SIZE;
+        glm::vec3 direction = glm::normalize(glm::vec3(targetX, pos.y, targetZ) - pos);
+
+        float nextX = pos.x + direction.x * speed;
+        float nextZ = pos.z + direction.z * speed;
+
+        // 충돌 체크: 벽이 아니면 이동
+        if (!maze.CheckCollision(nextX, pos.z)) {
+            pos.x = nextX;
+        }
+        if (!maze.CheckCollision(pos.x, nextZ)) {
+            pos.z = nextZ;
+        }
+        rotY = glm::degrees(atan2(direction.x, direction.z));
+    }
+	else {
+		// 경로가 없으면 천천히 플레이어 근처로 이동
+		glm::vec3 direction = glm::normalize(glm::vec3(playerPos.x, pos.y, playerPos.z) - pos);
+		pos.x += direction.x * (speed * 0.5f);
+		pos.z += direction.z * (speed * 0.5f);
+		rotY = glm::degrees(atan2(direction.x, direction.z));
+	}
 
     // 2. 둥둥 뜨는 애니메이션
     floatTime += 0.05f;
@@ -113,3 +139,77 @@ void Ghost::Draw(GLuint shaderID, const Model& model) {
     rArmMat = glm::rotate(rArmMat, glm::radians(-40.0f - armWobble), glm::vec3(0.0f, 0.0f, 1.0f));
     DrawBox(shaderID, model, glm::scale(rArmMat, glm::vec3(0.15f, 0.5f, 0.15f)), baseColor * 0.8f);
 }
+
+bool IsCollideWithPlayer(const glm::vec3& ghostPos, const glm::vec3& playerPos) {
+    float threshold = 0.7f;
+    float dx = ghostPos.x - playerPos.x;
+    float dz = ghostPos.z - playerPos.z;
+    float distSq = dx * dx + dz * dz;
+    return distSq < (threshold * threshold);
+}
+
+glm::vec3 GetRandomPathPosition(const MazeMap& maze, int mapSize, float baseHeight) {
+    std::vector<std::pair<int, int>> pathCells;
+    for (int z = 0; z < mapSize; ++z) {
+        for (int x = 0; x < mapSize; ++x) {
+            if (maze.maze[z * mapSize + x] == 0) {
+                pathCells.emplace_back(z, x);
+            }
+        }
+    }
+    if (pathCells.empty()) return glm::vec3(0.0f, baseHeight, 0.0f);
+
+    std::random_device rd;
+    std::mt19937 gen(rd());
+    std::uniform_int_distribution<> dis(0, pathCells.size() - 1);
+    auto cell = pathCells[dis(gen)];
+    float worldX = cell.second * WALL_SIZE;
+    float worldZ = cell.first * WALL_SIZE;
+    return glm::vec3(worldX, baseHeight, worldZ);
+}
+
+
+std::vector<std::pair<int, int>> Ghost::FindPath(MazeMap& maze, glm::vec3 startPos, glm::vec3 endPos, int mapSize) {
+    int sx = static_cast<int>((startPos.x + WALL_SIZE / 2) / WALL_SIZE);
+    int sz = static_cast<int>((startPos.z + WALL_SIZE / 2) / WALL_SIZE);
+    int ex = static_cast<int>((endPos.x + WALL_SIZE / 2) / WALL_SIZE);
+    int ez = static_cast<int>((endPos.z + WALL_SIZE / 2) / WALL_SIZE);
+
+    std::queue<std::pair<int, int>> q;
+    std::unordered_map<int, std::pair<int, int>> parent;
+    std::vector<std::vector<bool>> visited(mapSize, std::vector<bool>(mapSize, false));
+    int dr[4] = { -1, 1, 0, 0 }, dc[4] = { 0, 0, -1, 1 };
+
+    q.push({ sz, sx });
+    visited[sz][sx] = true;
+
+    while (!q.empty()) {
+        auto rc = q.front(); q.pop();
+        int r = rc.first;
+        int c = rc.second;
+        if (r == ez && c == ex) break;
+        for (int d = 0; d < 4; ++d) {
+            int nr = r + dr[d], nc = c + dc[d];
+            if (nr >= 0 && nr < mapSize && nc >= 0 && nc < mapSize &&
+                !visited[nr][nc] && maze.maze[nr * mapSize + nc] == 0) {
+                visited[nr][nc] = true;
+                parent[nr * mapSize + nc] = { r, c };
+                q.push({ nr, nc });
+            }
+        }
+    }
+
+    // 경로 역추적
+    std::vector<std::pair<int, int>> path;
+    int r = ez, c = ex;
+    while (!(r == sz && c == sx)) {
+        path.push_back({ r, c });
+        auto it = parent.find(r * mapSize + c);
+        if (it == parent.end()) break;
+        r = it->second.first;
+        c = it->second.second;
+    }
+    std::reverse(path.begin(), path.end());
+    return path;
+}
+

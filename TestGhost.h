@@ -23,8 +23,13 @@ public:
     Ghost(glm::vec3 startPos);
     void Update(glm::vec3 targetPos, MazeMap& maze);
     void Draw(GLuint shaderID, const Model& model);
+    std::vector<std::pair<int, int>> FindPath(MazeMap& maze, glm::vec3 startPos, glm::vec3 endPos, int mapSize);
 
 private:
     // 내부 그리기 함수
     void DrawBox(GLuint shaderID, const Model& model, glm::mat4 modelMat, glm::vec3 color);
 };
+
+bool IsCollideWithPlayer(const glm::vec3& ghostPos, const glm::vec3& playerPos);
+
+glm::vec3 GetRandomPathPosition(const MazeMap& maze, int mapSize, float baseHeight);

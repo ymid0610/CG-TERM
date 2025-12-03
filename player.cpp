@@ -194,10 +194,7 @@ void Player::ProcessMouse(int x, int y, int width, int height) {
 
 glm::vec3 Player::GetCameraPos() {
     if (viewMode == 3) {
-        float camHeight = 2.0f;
-        float camX = sin(cameraAngle) * cameraDistance;
-        float camZ = cos(cameraAngle) * cameraDistance;
-        return pos + glm::vec3(camX, camHeight, camZ);
+        return pos + glm::vec3(0.0f, 50.0f, 0.0f);
     }
     else {
         return pos + glm::vec3(0.0f, 0.6f, 0.0f);

@@ -113,7 +113,7 @@ void DrawStaminaBar() {
 
 void DrawScene() {
     glEnable(GL_DEPTH_TEST);
-    glClearColor(0.1f, 0.1f, 0.1f, 1.0f);
+    glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
     glUseProgram(shaderProgramID);
     glBindVertexArray(VAO);
@@ -121,6 +121,10 @@ void DrawScene() {
     glm::vec3 cameraPos = player.GetCameraPos();
     glm::vec3 cameraTarget = player.GetCameraTarget();
     glm::vec3 cameraUp = glm::vec3(0.0f, 1.0f, 0.0f);
+
+	if (player.viewMode == 3) {
+		cameraUp = glm::vec3(0.0f, 0.0f, -1.0f);
+	}
 
     glm::mat4 view = glm::lookAt(cameraPos, cameraTarget, cameraUp);
     glm::mat4 proj = glm::perspective(glm::radians(45.0f), (float)width / height, 0.1f, 100.0f);
@@ -158,15 +162,6 @@ void DrawScene() {
 
     // test
     ghost.Draw(shaderProgramID, model);
-
-    // 4. ¹Ù´Ú & ÃµÀå
-    glm::mat4 floorMat = glm::translate(glm::mat4(1.0f), glm::vec3(10.0f, -2.0f, 10.0f));
-    floorMat = glm::scale(floorMat, glm::vec3(20.0f, 0.1f, 20.0f));
-    DrawCube(floorMat, glm::vec3(0.3f, 0.35f, 0.3f));
-
-    glm::mat4 ceilMat = glm::translate(glm::mat4(1.0f), glm::vec3(10.0f, 3.0f, 10.0f));
-    ceilMat = glm::scale(ceilMat, glm::vec3(20.0f, 0.1f, 20.0f));
-    DrawCube(ceilMat, glm::vec3(0.4f, 0.4f, 0.4f));
 
     // 5. UI
     DrawStaminaBar();
