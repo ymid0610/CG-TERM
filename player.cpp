@@ -11,7 +11,7 @@ Player::Player() {
     cameraDistance = 3.0f;
     pitch = 0.0f;
     sensitivity = 0.002f;
-    viewMode = 3;
+	viewMode = 1; // ±âº» 1ÀÎÄª
 
     currentAnim = IDLE;
     animTime = 0.0f;
