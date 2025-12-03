@@ -1,6 +1,6 @@
 // Wardrobe.h
 #pragma once
-
+#include "ReadObjFile.h"
 #include <gl/glew.h>
 #include <gl/glm/glm.hpp>
 #include <gl/glm/ext.hpp>

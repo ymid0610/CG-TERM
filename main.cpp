@@ -8,7 +8,7 @@
 #include <gl/glm/gtc/matrix_transform.hpp>
 #include <vector>
 #include <random>
-#include <stdlib.h>
+#include <stdlib.h>sd
 #include <stdio.h>
 
 // 사용자 정의 헤더 파일 포함
