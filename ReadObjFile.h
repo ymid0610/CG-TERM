@@ -20,14 +20,14 @@ typedef struct {
 	size_t face_count;
 } Model;
 
-void read_newline(char* str) {
+inline void read_newline(char* str) {
 	char* pos;
 	if ((pos = strchr(str, '\n')) != NULL) {
 		*pos = '\0';
 	}
 }
 
-void read_obj_file(const char* filename, Model* model) {
+inline void read_obj_file(const char* filename, Model* model) {
 	FILE* file;
 	fopen_s(&file, filename, "r");
 	if (!file) {
