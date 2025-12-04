@@ -85,18 +85,20 @@ void Wardrobe::Update(glm::vec3& playerPos, float& cameraAngle, float& pitch, in
 }
 
 // [수정] TryInteract: 상호작용 범위를 현재 옷장 위치(posX, posZ) 기준으로 체크
-void Wardrobe::TryInteract(glm::vec3 playerPos) {
+int Wardrobe::TryInteract(glm::vec3 playerPos) {
     // F키를 눌렀을 때 호출됨
     if (currentState == STATE_OUTSIDE) {
         // 옷장 앞(posX보다 작은 쪽)에 있고, Z축으로 옷장 폭 내에 있을 때
         // 예: posX가 10이라면 플레이어는 8.5 ~ 10.5 사이
         if (playerPos.x > (posX - 1.5f) && playerPos.x < (posX + 0.5f) && abs(playerPos.z - posZ) < 3.0f) {
             currentState = STATE_ENTERING;
+            return 1;
         }
     }
     else if (currentState == STATE_HIDDEN) {
         // 숨어있을 때는 나가기 상태로 전환
         currentState = STATE_EXITING;
+        return 1;
     }
 }
 

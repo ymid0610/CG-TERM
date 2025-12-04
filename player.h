@@ -31,6 +31,7 @@ public:
     // 상태 플래그
     bool isFlashlightOn;
     bool isExhausted;
+    bool isHide; // 숨기 플래그 , true == 귀신이 인식 못함
 
     // 스테미너
     float maxStamina;

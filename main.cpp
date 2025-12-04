@@ -204,7 +204,10 @@ void Timer(int value) {
     // [추가] 유령(Ghost) 업데이트
     // 플레이어의 위치(player.pos)를 타겟으로 주고, 충돌 체크용 맵(maze)을 넘깁니다.
     // ==========================================================
-    ghost.Update(player.pos, maze);
+    if (player.isHide == false) {
+        ghost.Update(player.pos, maze);
+    }
+    
 
 
     // 승리 조건 체크
@@ -219,6 +222,7 @@ void Timer(int value) {
 
 void Keyboard(unsigned char key, int x, int y) {
     keyState[key] = true;
+    int hide;
 
     switch (key) {
     case '1': player.viewMode = 1; break;
@@ -230,9 +234,10 @@ void Keyboard(unsigned char key, int x, int y) {
 
         // [추가] F키로 옷장 상호작용
     case 'f':
-        wardrobe.TryInteract(player.pos);
-        break;
+        hide = wardrobe.TryInteract(player.pos);
+        if (hide == 1) player.isHide = !player.isHide;
 
+        break;
     case 'q': exit(0); break;
     }
 }

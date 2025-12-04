@@ -48,7 +48,7 @@ public:
     void Draw(GLuint shaderID, const Model& model);
 
     // 상호작용 (F키 눌렀을 때)
-    void TryInteract(glm::vec3 playerPos);
+    int TryInteract(glm::vec3 playerPos);
 
     // 상태 확인용 getter
     HidingState GetState() const { return currentState; }

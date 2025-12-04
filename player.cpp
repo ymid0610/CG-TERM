@@ -20,6 +20,7 @@ Player::Player() {
 
     isFlashlightOn = false;
     isExhausted = false;
+    isHide = false;
 
     maxStamina = 100.0f;
     currentStamina = 100.0f;
