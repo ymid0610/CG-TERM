@@ -50,7 +50,16 @@ void MazeMap::Draw(GLuint shaderProgramID, void (*DrawCubeFunc)(glm::mat4, glm::
                 }
                 modelMat = glm::scale(modelMat, glm::vec3(WALL_SIZE, wallHeight, WALL_SIZE));
 
-                DrawCubeFunc(modelMat, glm::vec3(0.0f, 1.0f, 0.0f));
+                DrawCubeFunc(modelMat, glm::vec3(0.55f, 0.5f, 0.5f));
+            }
+            else if (mapData[z][x] == 3) { // 도착지점 그리기
+                glm::mat4 modelMat = glm::mat4(1.0f);
+                float worldX = x * WALL_SIZE;
+                float worldZ = z * WALL_SIZE;
+                modelMat = glm::translate(modelMat, glm::vec3(worldX, -(WALL_HEIGHT / 2.0f) + 0.01f, worldZ));
+                modelMat = glm::scale(modelMat, glm::vec3(WALL_SIZE / 1.5f, WALL_HEIGHT, WALL_SIZE / 1.5f));
+                // 노란색 바닥
+                DrawCubeFunc(modelMat, glm::vec3(1.0f, 1.0f, 0.0f));
             }
         }
     }

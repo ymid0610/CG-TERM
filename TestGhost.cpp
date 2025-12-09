@@ -9,7 +9,7 @@ Ghost::Ghost(glm::vec3 startPos) {
     pos = startPos;
     baseHeight = startPos.y;
     rotY = 0.0f;
-    speed = 0.06f; // 이동 속도
+    speed = 0.11f; // 이동 속도
 
     floatTime = 0.0f;
     wobbleTime = 0.0f;
@@ -45,17 +45,51 @@ void Ghost::DrawBox(GLuint shaderID, const Model& model, glm::mat4 modelMat, glm
     glDisable(GL_BLEND);
 }
 
-bool Ghost::Update(glm::vec3 playerPos, MazeMap& maze) {
+bool Ghost::Update(glm::vec3 playerPos, MazeMap& maze, bool playerIsHide) {
 
-    // 플레이어와 충돌 체크
-    if (IsCollideWithPlayer(pos, playerPos)) {
-        pos = GetRandomPathPosition(maze, MAP_SIZE, baseHeight);
-        floatTime = 0.0f; // 애니메이션 초기화(선택)
-        wobbleTime = 0.0f;
-        return true; // 이동 로직 생략
+    // 플레이어 충돌처리
+	if (IsCollideWithPlayer(pos, playerPos)) {
+		// 충돌 시 유령 랜덤위치로 이동
+		pos = GetRandomPathPosition(maze, MAP_SIZE, baseHeight);
+		return true; // 충돌 발생
+	}
+
+    // 최초 y위치 저장
+    if (state == NORMAL) targetY = pos.y;
+
+    if (playerIsHide) {
+        // 숨는 순간 위로 이동 시작
+        if (state == NORMAL || state == GOING_DOWN) state = GOING_UP;
     }
-    
-	// 1. 플레이어 쪽으로 이동
+    else {
+        // 나오는 순간 아래로 이동 시작
+        if (state == WAITING || state == GOING_UP) state = GOING_DOWN;
+    }
+
+    // 상태별 y축 이동 처리
+    if (state == GOING_UP) {
+        pos.y += yMoveSpeed;
+        if (pos.y >= hideY) {
+            pos.y = hideY;
+            state = WAITING;
+        }
+        return false;
+    }
+    if (state == WAITING) {
+        // 위에서 대기, 추적 안함
+        return false;
+    }
+    if (state == GOING_DOWN) {
+        pos.y -= yMoveSpeed;
+        if (pos.y <= targetY) {
+            pos.y = targetY;
+            state = NORMAL;
+        }
+        return false;
+    }
+
+    // NORMAL 상태에서만 플레이어 추적
+    // 기존 추적 로직 (예시)
     int mapSize = MAP_SIZE;
     auto path = FindPath(maze, pos, playerPos, mapSize);
     if (!path.empty()) {
@@ -69,7 +103,6 @@ bool Ghost::Update(glm::vec3 playerPos, MazeMap& maze) {
         float nextX = pos.x + direction.x * speed;
         float nextZ = pos.z + direction.z * speed;
 
-        // 충돌 체크: 벽이 아니면 이동
         if (!maze.CheckCollision(nextX, pos.z)) {
             pos.x = nextX;
         }
@@ -78,13 +111,19 @@ bool Ghost::Update(glm::vec3 playerPos, MazeMap& maze) {
         }
         rotY = glm::degrees(atan2(direction.x, direction.z));
     }
-	else {
-		// 경로가 없으면 천천히 플레이어 근처로 이동
-		glm::vec3 direction = glm::normalize(glm::vec3(playerPos.x, pos.y, playerPos.z) - pos);
-		pos.x += direction.x * (speed * 0.5f);
-		pos.z += direction.z * (speed * 0.5f);
+    else {
+		// 플레이어와 경로가 없으면 플레이어를 향해 바로 이동
+		glm::vec3 direction = glm::normalize(playerPos - pos);
+		float nextX = pos.x + direction.x * speed;
+		float nextZ = pos.z + direction.z * speed;
+        if (!maze.CheckCollision(nextX, pos.z)) {
+            pos.x = nextX;
+        }
+		if (!maze.CheckCollision(pos.x, nextZ)) {
+			pos.z = nextZ;
+		}
 		rotY = glm::degrees(atan2(direction.x, direction.z));
-	}
+    }
 
     // 2. 둥둥 뜨는 애니메이션
     floatTime += 0.05f;

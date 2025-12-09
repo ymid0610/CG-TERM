@@ -34,7 +34,7 @@ Player player;   // 플레이어 객체
 std::vector<Wardrobe> wardrobes; // 단일 객체 삭제 후 벡터로 변경
 
 //Ghost
-Ghost ghost(glm::vec3((MAP_SIZE - 1) * WALL_SIZE, -1.0f, (MAP_SIZE - 2) * WALL_SIZE));
+std::vector<Ghost> ghosts;
 bool isGhostBGM = false;
 
 bool isGameClear = false;
@@ -44,8 +44,9 @@ bool isHit = false; // 유령충돌 플래그
 glm::vec3 lightPos(0.0f, 2.0f, 0.0f);
 glm::vec3 lightDirection(0.0f, 0.0f, -1.0f);
 
-float ambient = 0.3f;
+#define MAIN_LIGHT 0.2f
 #define GHOST_LIGHT 0.2f
+float ambient = MAIN_LIGHT;
 
 // 키보드 입력 상태 관리
 bool keyState[256] = { false };
@@ -298,9 +299,9 @@ void DrawScene() {
     DrawCube(floorMat, glm::vec3(0.2f, 0.2f, 0.2f));
 
 	glUniform1f(ambientStrengthLoc, ambient + GHOST_LIGHT); // 유령 주변 밝게
-    ghost.Draw(shaderProgramID, model);
-
-
+    for (auto& g : ghosts) {
+        g.Draw(shaderProgramID, model);
+    }
 
     // UI
     DrawStaminaBar(); // 좌상단
@@ -326,7 +327,7 @@ void Timer(int value) {
         w.Update(player.pos, player.cameraAngle, player.pitch, player.viewMode, player.isFlashlightOn);
         if (w.GetState() != STATE_OUTSIDE) {
             insideAny = true;
-            activeWardrobe = &w; // 현재 상호작용 중인 옷장
+            activeWardrobe = &w;
         }
     }
 
@@ -334,70 +335,48 @@ void Timer(int value) {
         player.Update(keyState, maze);
     }
     else {
-        // 숨은 상태 로직
         player.currentAnim = IDLE;
         if (player.currentStamina < player.maxStamina) player.currentStamina += 0.5f;
     }
 
-   
-
-    // ==========================================================
-    // [추가] 유령(Ghost) 업데이트
-    // 플레이어의 위치(player.pos)를 타겟으로 주고, 충돌 체크용 맵(maze)을 넘깁니다.
-    // ==========================================================
-    if (player.isHide == false) {
-        isHit = ghost.Update(player.pos, maze);
+    // --- 유령(Ghost) 여러 마리 업데이트 ---
+    isHit = false;
+    float minDist = 1e9f;
+    for (auto& g : ghosts) {
+        bool hit = g.Update(player.pos, maze, player.isHide);
+        if (hit) isHit = true;
+        float dist = glm::distance(player.pos, g.GetPos());
+        if (dist < minDist) minDist = dist;
     }
-    else {
-		// 맵의 도착지점 좌표 계산
-		glm::vec3 exitPos;
-		for (int z = 0; z < MAP_SIZE; z++) {
-			for (int x = 0; x < MAP_SIZE; x++) {
-				if (maze.mapData[z][x] == 3) {
-					exitPos = glm::vec3(x * WALL_SIZE, -1.0f, z * WALL_SIZE);
-				}
-			}
-		}
-		isHit = ghost.Update(exitPos, maze);
-    }
-
-    float dist = glm::distance(player.pos, ghost.GetPos());
 
     // 감지 거리 설정 (예: 10.0f 거리 이내)
-    float detectRange = 10.0f;
-
-    if (dist < detectRange) {
-        // [상황 1] 유령이 가까이 있고, 아직 공포 BGM이 아닐 때 -> 공포 BGM 재생
+    float detectRange = 15.0f;
+    if (minDist < detectRange) {
         if (!isGhostBGM) {
             soundManager.PlayBGM("NearByGhost.mp3");
-            soundManager.SetBGMVolume(300); 
-            isGhostBGM = true; // 상태 변경
+            soundManager.SetBGMVolume(300);
+            isGhostBGM = true;
         }
+        // 거리 비례 밝기 어둡게
+		ambient = MAIN_LIGHT * (minDist / detectRange);
     }
     else {
-        // [상황 2] 유령이 멀어졌고, 현재 공포 BGM이 재생 중일 때 -> 원래 BGM 복구
         if (isGhostBGM) {
             soundManager.PlayBGM("Dead_Silence_Soundtrack.mp3");
-            soundManager.SetBGMVolume(300); // 원래 설정했던 볼륨으로 복구
-            isGhostBGM = false; // 상태 변경
+            soundManager.SetBGMVolume(300);
+            isGhostBGM = false;
         }
+		ambient = MAIN_LIGHT;
     }
 
     if (isHit) {
-        // 효과음
         soundManager.PlaySFX("HitGhost.mp3");
         soundManager.SetSFXVolume(500);
 
-        // 랜덤위치로 이동
         glm::vec3 randPos = maze.GetRandomOpenPos();
-
-        // 플레이어의 Y(높이)는 유지하고 X, Z만 변경
-        // (플레이어 생성자에서 Y가 -1.0f로 설정되어 있으므로 이를 유지해야 함)
         player.pos.x = randPos.x;
         player.pos.z = randPos.z;
 
-        
-        // 체력깎음
         player.hp -= 10;
         std::cout << "유령과 충돌!" << std::endl;
         std::cout << "남은체력 : " << player.hp << std::endl;
@@ -407,7 +386,6 @@ void Timer(int value) {
         isHit = false;
     }
 
-    // 승리 조건 체크
     if (maze.CheckVictory(player.pos.x, player.pos.z)) {
         std::cout << "Game Clear!" << std::endl;
         isGameClear = true;
@@ -575,6 +553,9 @@ int main(int argc, char** argv) {
     InitBuffers();
 
     InitWardrobes(10);
+    ghosts.emplace_back(glm::vec3((MAP_SIZE - 1) * WALL_SIZE, -1.0f, (MAP_SIZE - 2) * WALL_SIZE));
+    ghosts.emplace_back(glm::vec3(1 * WALL_SIZE, -1.0f, (MAP_SIZE - 2) * WALL_SIZE));
+    ghosts.emplace_back(glm::vec3((MAP_SIZE - 2) * WALL_SIZE, -1.0f, 1 * WALL_SIZE));
 
     // 배경음악 
     soundManager.PlayBGM("Dead_Silence_Soundtrack.mp3");
