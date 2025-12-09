@@ -353,7 +353,10 @@ void Keyboard(unsigned char key, int x, int y) {
         if (maze.BreakWall(player.pos, cameraFront)) soundManager.PlaySFX("BreakWall.aiff");
 
         hide = wardrobe.TryInteract(player.pos);
-        if (hide == 1) player.isHide = !player.isHide;
+        if (hide == 1) {
+            player.isHide = !player.isHide;
+            soundManager.PlaySFX("Closet.mp3");
+        }
 
         break;
     case 'q': exit(0); break;
