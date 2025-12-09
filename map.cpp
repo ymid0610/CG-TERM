@@ -36,14 +36,23 @@ void MazeMap::Draw(GLuint shaderProgramID, void (*DrawCubeFunc)(glm::mat4, glm::
                 DrawCubeFunc(modelMat, glm::vec3(0.5f, 0.5f, 0.5f));
             }
             else if (mapData[z][x] == 2) { // 부셔지는 벽 그리기
-                glm::mat4 modelMat = glm::mat4(1.0f);
                 float worldX = x * WALL_SIZE;
                 float worldZ = z * WALL_SIZE;
+                float wallHeight = WALL_HEIGHT;
+                if (breakWallState[z][x].isBreaking) {
+                    wallHeight = breakWallState[z][x].currentHeight;
+                }
+                glm::mat4 modelMat = glm::mat4(1.0f);
 
-                modelMat = glm::translate(modelMat, glm::vec3(worldX, 0.0f, worldZ)); // 바닥에 깔기
-                modelMat = glm::scale(modelMat, glm::vec3(WALL_SIZE, WALL_HEIGHT, WALL_SIZE));
+                if (!breakWallState[z][x].isBreaking) {
+                    modelMat = glm::translate(modelMat, glm::vec3(worldX, 0.0f, worldZ));
+                }
+                else {
+                    modelMat = glm::translate(modelMat, glm::vec3(worldX, (wallHeight / 2.0f) - (WALL_HEIGHT / 2.0f), worldZ));
+                }
+                modelMat = glm::scale(modelMat, glm::vec3(WALL_SIZE, wallHeight, WALL_SIZE));
 
-                DrawCubeFunc(modelMat, glm::vec3(0.0f, 1.0f, 0.0f)); // 초록색
+                DrawCubeFunc(modelMat, glm::vec3(0.0f, 1.0f, 0.0f));
             }
         }
     }
@@ -162,12 +171,28 @@ bool MazeMap::BreakWall(glm::vec3 playerPos, glm::vec3 playerFront) {
         return false;
     }
 
-    // 5. 부서지는 벽(2)인지 확인
-    if (mapData[gridZ][gridX] == 2) {
-        mapData[gridZ][gridX] = 0; // 벽을 길(0)로 변경 -> 파괴!
-        std::cout << "벽이 파괴되었습니다! (" << gridX << ", " << gridZ << ")" << std::endl;
-        return true; // 파괴 성공
+    if (mapData[gridZ][gridX] == 2 && !breakWallState[gridZ][gridX].isBreaking) {
+        breakWallState[gridZ][gridX].isBreaking = true;
+        breakWallState[gridZ][gridX].currentHeight = WALL_HEIGHT;
+        std::cout << "벽 파괴 애니메이션 시작! (" << gridX << ", " << gridZ << ")" << std::endl;
+        return true;
     }
 
     return false; // 부실 수 있는 벽이 아님
+}
+
+void MazeMap::UpdateBreakWalls(float deltaTime) {
+    float downSpeed = 0.02f * deltaTime; // 초당 2만큼 내려감 (조절 가능)
+    for (int z = 0; z < MAP_SIZE; ++z) {
+        for (int x = 0; x < MAP_SIZE; ++x) {
+            if (mapData[z][x] == 2 && breakWallState[z][x].isBreaking) {
+                breakWallState[z][x].currentHeight -= downSpeed;
+                if (breakWallState[z][x].currentHeight <= 0.0f) {
+                    mapData[z][x] = 0; // 완전히 내려가면 길로 변경
+                    breakWallState[z][x].isBreaking = false;
+                    breakWallState[z][x].currentHeight = 0.0f;
+                }
+            }
+        }
+    }
 }

@@ -227,6 +227,8 @@ void Timer(int value) {
         return;
     }
 
+    maze.UpdateBreakWalls(1);
+
     // [중요 수정] 옷장 상태가 '평상시'일 때만 플레이어가 키보드로 움직임
     if (wardrobe.GetState() == STATE_OUTSIDE) {
         player.Update(keyState, maze);

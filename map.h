@@ -10,11 +10,17 @@
 #define WALL_SIZE 4
 #define WALL_HEIGHT 5.0f
 
+struct BreakWallInfo {
+    bool isBreaking = false;
+    float currentHeight = WALL_HEIGHT;
+};
+
 class MazeMap {
 public:
     // 0: 길, 1: 벽, 2: 도착지점
     int mapData[MAP_SIZE][MAP_SIZE];
     std::vector<int> maze;
+    BreakWallInfo breakWallState[MAP_SIZE][MAP_SIZE];
 
     MazeMap();
     void Init();
@@ -25,4 +31,6 @@ public:
 	bool GenerateMaze(int rows, int cols); // 미로 생성 함수
 	bool GenerateBreakableWalls(float probability);
     bool BreakWall(glm::vec3 playerPos, glm::vec3 playerFront); // 벽 부수는 함수
+	void UpdateBreakWalls(float deltaTime); // 부서지는 벽 상태 업데이트
 };
+
