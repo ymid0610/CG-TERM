@@ -9,6 +9,7 @@
 #define MAP_SIZE 5
 #define WALL_SIZE 8.0f
 #define WALL_HEIGHT 5.0f
+#define PLAYER_RADIUS 0.25f // 플레이어의 반지름(혹은 박스의 절반 폭)
 
 struct BreakWallInfo {
     bool isBreaking = false;
