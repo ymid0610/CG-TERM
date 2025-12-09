@@ -218,6 +218,12 @@ void DrawScene() {
     // test
     ghost.Draw(shaderProgramID, model);
 
+    // 바닥 그리기
+	glm::mat4 floorMat = glm::mat4(1.0f);
+	floorMat = glm::translate(floorMat, glm::vec3((MAP_SIZE * WALL_SIZE) / 2 - WALL_SIZE / 2, -1.5f, (MAP_SIZE * WALL_SIZE) / 2 - WALL_SIZE / 2));
+	floorMat = glm::scale(floorMat, glm::vec3(MAP_SIZE * WALL_SIZE, 0.1f, MAP_SIZE * WALL_SIZE));
+	DrawCube(floorMat, glm::vec3(0.2f, 0.2f, 0.2f));
+
     // UI
     DrawStaminaBar(); // 좌상단
     DrawHPBar();      // 우상단 [추가됨]
@@ -232,7 +238,7 @@ void Timer(int value) {
         return;
     }
 
-    maze.UpdateBreakWalls(1);
+    maze.UpdateBreakWalls(3);
 
     // [중요 수정] 옷장 상태가 '평상시'일 때만 플레이어가 키보드로 움직임
     if (wardrobe.GetState() == STATE_OUTSIDE) {
