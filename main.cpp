@@ -31,7 +31,7 @@ Player player;   // 플레이어 객체
 
 // [추가] 옷장 객체 생성 (원하는 좌표 입력: x, z)
 // 맵의 빈 공간 좌표를 잘 확인해서 넣어주세요. (예: 10.0, 4.0)
-Wardrobe wardrobe(5.0f, 5.0f);
+std::vector<Wardrobe> wardrobes; // 단일 객체 삭제 후 벡터로 변경
 
 //Ghost
 Ghost ghost(glm::vec3((MAP_SIZE - 1) * WALL_SIZE, -1.0f, (MAP_SIZE - 2) * WALL_SIZE));
@@ -66,6 +66,75 @@ void Timer(int value);
 void MouseMotion(int x, int y);
 void LoadOBJ(const char* filename);
 char* filetobuf(const char* file);
+
+void InitWardrobes(int count) {
+    wardrobes.clear();
+    std::random_device rd;
+    std::mt19937 gen(rd());
+
+    // 맵 내부 좌표 (1 ~ MAP_SIZE-2)
+    std::uniform_int_distribution<> dis(1, MAP_SIZE - 2);
+
+    int placedCount = 0;
+    int attempts = 0;
+
+    // [계산] 옷장을 중심에서 얼마만큼 밀어야 벽에 딱 붙는지 계산
+    // WALL_SIZE가 4.0f라면 반은 2.0f, 옷장 뒤쪽 깊이는 0.8f 이므로
+    // 중심에서 1.2f만큼 밀면 벽과 정확히 맞닿습니다.
+    float offset = (WALL_SIZE / 2.0f) - 0.8f;
+
+    while (placedCount < count && attempts < 1000) {
+        attempts++;
+        int x = dis(gen);
+        int z = dis(gen);
+
+        // 1. 현재 위치가 길(0)이어야 함
+        if (maze.mapData[z][x] != 0) continue;
+
+        // 2. 이미 옷장이 있는지 체크 (겹침 방지)
+        bool alreadyExists = false;
+        for (auto& w : wardrobes) {
+            if (glm::distance(glm::vec3(x * WALL_SIZE, 0, z * WALL_SIZE), glm::vec3(w.GetPos().x, 0, w.GetPos().z)) < 2.0f)
+                alreadyExists = true;
+        }
+        if (alreadyExists) continue;
+
+        // 3. 4방향을 검사하여 벽을 찾음
+        float wx = x * WALL_SIZE;
+        float wz = z * WALL_SIZE;
+        bool placed = false;
+
+        // [오른쪽(X+1)이 벽] -> 옷장 뒤(+X)가 오른쪽을 봐야 함 (Rot: 0도)
+        // 위치: 중심에서 오른쪽으로 offset만큼 이동
+        if (maze.mapData[z][x + 1] == 1) {
+            wardrobes.emplace_back(wx + offset, wz, 0.0f);
+            placed = true;
+        }
+        // [왼쪽(X-1)이 벽] -> 옷장 뒤가 왼쪽(-X)을 봐야 함 (Rot: 180도)
+        // 위치: 중심에서 왼쪽으로 offset만큼 이동
+        else if (maze.mapData[z][x - 1] == 1) {
+            wardrobes.emplace_back(wx - offset, wz, 180.0f);
+            placed = true;
+        }
+        // [아래(Z+1)가 벽] -> 옷장 뒤가 아래(+Z)를 봐야 함 (Rot: -90도)
+        // GLM 회전: -90도 회전 시 Local +X 가 World +Z가 됨
+        // 위치: 중심에서 아래로 offset만큼 이동
+        else if (maze.mapData[z + 1][x] == 1) {
+            wardrobes.emplace_back(wx, wz + offset, -90.0f);
+            placed = true;
+        }
+        // [위(Z-1)가 벽] -> 옷장 뒤가 위(-Z)를 봐야 함 (Rot: 90도)
+        // GLM 회전: 90도 회전 시 Local +X 가 World -Z가 됨
+        // 위치: 중심에서 위로 offset만큼 이동
+        else if (maze.mapData[z - 1][x] == 1) {
+            wardrobes.emplace_back(wx, wz - offset, 90.0f);
+            placed = true;
+        }
+
+        if (placed) placedCount++;
+    }
+    std::cout << "옷장 " << placedCount << "개 생성 완료." << std::endl;
+}
 
 // 헬퍼 함수: 큐브 그리기
 void DrawCube(glm::mat4 modelMat, glm::vec3 color) {
@@ -218,7 +287,9 @@ void DrawScene() {
     maze.Draw(shaderProgramID, DrawCube);
 
     // [추가] 3. 옷장 그리기
-    wardrobe.Draw(shaderProgramID, model);
+    for (auto& w : wardrobes) {
+        w.Draw(shaderProgramID, model);
+    }
 
     // 바닥 그리기
     glm::mat4 floorMat = glm::mat4(1.0f);
@@ -247,29 +318,28 @@ void Timer(int value) {
 
     maze.UpdateBreakWalls(3);
 
-    // [중요 수정] 옷장 상태가 '평상시'일 때만 플레이어가 키보드로 움직임
-    if (wardrobe.GetState() == STATE_OUTSIDE) {
-        player.Update(keyState, maze);
-    }
-    else {
-        // 숨어있거나 애니메이션 중일 때는 플레이어 걷기 애니메이션 중지
-        player.currentAnim = IDLE;
+    bool insideAny = false;
+    Wardrobe* activeWardrobe = nullptr;
 
-        // 숨어있는 동안 스테미너 회복 (선택사항)
-        if (player.currentStamina < player.maxStamina) {
-            player.currentStamina += 0.5f;
+    // 모든 옷장 업데이트
+    for (auto& w : wardrobes) {
+        w.Update(player.pos, player.cameraAngle, player.pitch, player.viewMode, player.isFlashlightOn);
+        if (w.GetState() != STATE_OUTSIDE) {
+            insideAny = true;
+            activeWardrobe = &w; // 현재 상호작용 중인 옷장
         }
     }
 
-    // [추가] 옷장 업데이트 (항상 호출)
-    // 옷장이 플레이어의 위치, 시점 등을 제어할 수 있도록 참조 전달
-    wardrobe.Update(
-        player.pos,
-        player.cameraAngle,
-        player.pitch,
-        player.viewMode,
-        player.isFlashlightOn
-    );
+    if (!insideAny) {
+        player.Update(keyState, maze);
+    }
+    else {
+        // 숨은 상태 로직
+        player.currentAnim = IDLE;
+        if (player.currentStamina < player.maxStamina) player.currentStamina += 0.5f;
+    }
+
+   
 
     // ==========================================================
     // [추가] 유령(Ghost) 업데이트
@@ -375,10 +445,13 @@ void Keyboard(unsigned char key, int x, int y) {
         // [수정] 2. 위치와 방향을 함께 전달하여 벽 파괴 시도
         if (maze.BreakWall(player.pos, cameraFront)) soundManager.PlaySFX("BreakWall.aiff");
 
-        hide = wardrobe.TryInteract(player.pos);
-        if (hide == 1) {
-            player.isHide = !player.isHide;
-            soundManager.PlaySFX("Closet.mp3");
+        for (auto& w : wardrobes) {
+            int result = w.TryInteract(player.pos);
+            if (result == 1) {
+                player.isHide = !player.isHide;
+                soundManager.PlaySFX("Closet.mp3");
+                break; // 한 번에 하나의 옷장만 상호작용
+            }
         }
 
         break;
@@ -500,6 +573,8 @@ int main(int argc, char** argv) {
 
     LoadOBJ("cube.obj");
     InitBuffers();
+
+    InitWardrobes(5);
 
     // 배경음악 
     soundManager.PlayBGM("Dead_Silence_Soundtrack.mp3");

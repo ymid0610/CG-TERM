@@ -6,7 +6,7 @@
 #include <gl/glm/glm.hpp>
 
 // 맵의 크기와 셀 하나의 크기 정의
-#define MAP_SIZE 33
+#define MAP_SIZE 5
 #define WALL_SIZE 8.0f
 #define WALL_HEIGHT 5.0f
 

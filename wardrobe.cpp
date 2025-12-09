@@ -1,17 +1,15 @@
-// Wardrobe.cpp
 #include "wardrobe.h"
 #include <iostream>
 
-// [수정] 생성자에서 위치를 받아서 초기화
-Wardrobe::Wardrobe(float x, float z) {
-    posX = x; // 옷장 앞면 X 좌표
-    posZ = z; // 옷장 중심 Z 좌표
+// [수정] 생성자: 회전 각도 입력 받음
+Wardrobe::Wardrobe(float x, float z, float rot) {
+    posX = x;
+    posZ = z;
+    rotation = rot; // 각도 저장
 
-    // 옷장의 크기 및 높이 설정
-    zWidth = 1.5f;
-    yBase = -0.25f;
+    zWidth = 1.5f;   // 옷장 절반 폭
+    yBase = -0.25f;  // 높이 오프셋
 
-    // 애니메이션 변수 초기화
     currentDoorAngle = 0.0f;
     targetAngle = 0.0f;
     doorSpeed = 5.0f;
@@ -21,7 +19,6 @@ Wardrobe::Wardrobe(float x, float z) {
 Wardrobe::~Wardrobe() {
 }
 
-// 헬퍼 함수: 클래스 내부에서 큐브를 그리기 위해 사용
 void Wardrobe::DrawBox(GLuint shaderID, const Model& model, glm::mat4 modelMat, glm::vec3 color) {
     GLint modelLoc = glGetUniformLocation(shaderID, "model");
     GLint faceColorLoc = glGetUniformLocation(shaderID, "faceColor");
@@ -33,48 +30,58 @@ void Wardrobe::DrawBox(GLuint shaderID, const Model& model, glm::mat4 modelMat, 
         glDrawElements(GL_TRIANGLES, model.face_count * 3, GL_UNSIGNED_INT, 0);
 }
 
-// [수정] Update 함수: 플레이어 이동 위치를 posX, posZ 기준으로 계산
 void Wardrobe::Update(glm::vec3& playerPos, float& cameraAngle, float& pitch, int& viewMode, bool& isFlashlightOn) {
+    // [수정] 회전을 고려한 숨는 위치 계산
+    // 옷장 중심에서 "뒤쪽"으로 0.5만큼, "위쪽"으로 이동한 로컬 벡터를 회전 변환
+    glm::mat4 transMat = glm::mat4(1.0f);
+    transMat = glm::rotate(transMat, glm::radians(rotation), glm::vec3(0.0f, 1.0f, 0.0f));
 
-    // 숨었을 때 플레이어가 위치할 좌표 (옷장 안쪽: 앞면보다 0.8만큼 뒤)
-    float hiddenX = posX + 0.8f;
-    float hiddenZ = posZ;
+    // 옷장 내부(Local): 뒤쪽(+0.8 X방향)이 아니라 회전 고려 필요.
+    // 모델 기준: Front는 -X방향, Back은 +X방향.
+    // 숨을 위치: 중심(0,0)에서 약간 뒤(+0.5 X)
+    glm::vec4 localHidePos = glm::vec4(0.5f, 0.0f, 0.0f, 1.0f);
+    glm::vec4 worldHidePos = transMat * localHidePos;
 
+    float hiddenX = posX + worldHidePos.x;
+    float hiddenZ = posZ + worldHidePos.z;
+
+    // ... (기존 스위치문 로직 동일) ...
     switch (currentState) {
     case STATE_OUTSIDE:
         targetAngle = 0.0f;
         break;
-
     case STATE_ENTERING:
         targetAngle = 90.0f;
-        // 문이 다 열리면 플레이어를 안으로 이동시키고 문 닫기 시작
         if (currentDoorAngle >= 90.0f) {
-            playerPos = glm::vec3(hiddenX, -1.0f, hiddenZ); // 내부로 이동
-            cameraAngle = glm::radians(90.0f); // 문 쪽을 바라봄
-            pitch = 0.0f;
-            viewMode = 1;         // 1인칭 고정
-            isFlashlightOn = false; // 불 끄기
+            playerPos = glm::vec3(hiddenX, -1.0f, hiddenZ);
+            // [수정된 부분] ----------------------------------------------------
+            // 플레이어 카메라 로직상 0도는 -Z, 90도는 -X를 봅니다.
+            // 옷장의 문은 로컬 좌표계에서 -X 방향에 있습니다.
+            // 따라서 (90도 - 옷장회전각도)를 해야 정확히 문 밖을 바라봅니다.
+            cameraAngle = glm::radians(90.0f - rotation);
+            // -----------------------------------------------------------------
+
+            pitch = 0.0f;           // 정면을 바라봄
+            viewMode = 1;           // 1인칭 시점 강제
+            isFlashlightOn = false; // 숨으면 불 끄기
             currentState = STATE_HIDDEN;
         }
         break;
-
     case STATE_HIDDEN:
-        targetAngle = 25.0f; // 틈새 확보
-        // viewMode = 1;        // 강제 1인칭
-        playerPos = glm::vec3(hiddenX, -1.0f, hiddenZ); // 위치 고정
+        targetAngle = 25.0f;
+        playerPos = glm::vec3(hiddenX, -1.0f, hiddenZ);
         break;
-
     case STATE_EXITING:
         targetAngle = 90.0f;
-        // 문이 다 열리면 플레이어를 밖으로 이동
         if (currentDoorAngle >= 90.0f) {
-            playerPos = glm::vec3(posX - 1.0f, -1.0f, posZ); // 옷장 앞으로 이동
+            // 나올 때는 옷장 앞(-1.5f * Front방향)으로 이동
+            glm::vec4 exitOffset = transMat * glm::vec4(-1.5f, 0.0f, 0.0f, 1.0f);
+            playerPos = glm::vec3(posX + exitOffset.x, -1.0f, posZ + exitOffset.z);
             currentState = STATE_OUTSIDE;
         }
         break;
     }
 
-    // 문 애니메이션 (부드러운 회전)
     if (abs(currentDoorAngle - targetAngle) > 1.0f) {
         if (currentDoorAngle < targetAngle) currentDoorAngle += doorSpeed;
         else currentDoorAngle -= doorSpeed;
@@ -84,97 +91,82 @@ void Wardrobe::Update(glm::vec3& playerPos, float& cameraAngle, float& pitch, in
     }
 }
 
-// [수정] TryInteract: 상호작용 범위를 현재 옷장 위치(posX, posZ) 기준으로 체크
 int Wardrobe::TryInteract(glm::vec3 playerPos) {
-    // F키를 눌렀을 때 호출됨
-    if (currentState == STATE_OUTSIDE) {
-        // 옷장 앞(posX보다 작은 쪽)에 있고, Z축으로 옷장 폭 내에 있을 때
-        // 예: posX가 10이라면 플레이어는 8.5 ~ 10.5 사이
-        if (playerPos.x > (posX - 1.5f) && playerPos.x < (posX + 0.5f) && abs(playerPos.z - posZ) < 3.0f) {
+    // [수정] 거리 기반 상호작용으로 변경 (회전 무관하게 작동)
+    float dist = glm::distance(playerPos, glm::vec3(posX, -1.0f, posZ));
+
+    // 플레이어가 옷장 중심에서 2.5 거리 이내에 있으면 상호작용 가능
+    if (dist < 2.5f) {
+        if (currentState == STATE_OUTSIDE) {
             currentState = STATE_ENTERING;
             return 1;
         }
+        else if (currentState == STATE_HIDDEN) {
+            currentState = STATE_EXITING;
+            return 1;
+        }
     }
-    else if (currentState == STATE_HIDDEN) {
-        // 숨어있을 때는 나가기 상태로 전환
-        currentState = STATE_EXITING;
-        return 1;
-    }
+    return 0;
 }
 
-// [수정] Draw 함수: 모든 좌표를 posX, posZ 기준으로 그리기
+// [핵심 수정] Draw 함수를 로컬 좌표계 + Model Matrix 방식으로 변경
 void Wardrobe::Draw(GLuint shaderID, const Model& model) {
-    // 좌표 계산
-    float xFront = posX;        // 앞면 위치
-    float xBack = posX + 1.5f;  // 뒷면 위치 (두께 1.5)
+    // 1. 기본 변환 행렬 (위치 이동 -> 회전)
+    glm::mat4 baseMat = glm::mat4(1.0f);
+    baseMat = glm::translate(baseMat, glm::vec3(posX, 0.0f, posZ));
+    baseMat = glm::rotate(baseMat, glm::radians(rotation), glm::vec3(0.0f, 1.0f, 0.0f));
 
-    // 색상 정의
+    // 색상
     glm::vec3 darkWood = glm::vec3(0.35f, 0.2f, 0.05f);
     glm::vec3 lightWood = glm::vec3(0.45f, 0.3f, 0.1f);
     glm::vec3 gold = glm::vec3(0.8f, 0.7f, 0.0f);
 
-    //// [상호작용 범위 시각화] - 투명한 초록 바닥
-    //glEnable(GL_BLEND);
-    //glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+    // --- 로컬 좌표계 기준 그리기 (중심 0,0,0) ---
+    // 이 모델의 정의: 앞(Front)은 -X 방향, 뒤(Back)는 +X 방향
 
-    //// 상호작용 가능한 영역 표시 (옷장 앞쪽 바닥)
-    //glm::mat4 zone = glm::translate(glm::mat4(1.0f), glm::vec3(posX - 0.75f, -1.95f, posZ));
-    //glm::mat4 zoneScale = glm::scale(zone, glm::vec3(1.5f, 0.01f, 6.0f));
-    //DrawBox(shaderID, model, zoneScale, glm::vec3(0.0f, 1.0f, 0.0f));
-
-    //glDisable(GL_BLEND);
-
-    // --- 옷장 몸체 그리기 ---
-    // 뒷면
-    glm::mat4 back = glm::translate(glm::mat4(1.0f), glm::vec3(xBack, yBase, posZ));
+    // 1. 뒷판 (Back Panel) : 로컬 X = +0.75 위치
+    glm::mat4 back = glm::translate(baseMat, glm::vec3(0.75f, yBase, 0.0f));
     glm::mat4 backScale = glm::scale(back, glm::vec3(0.1f, 3.5f, zWidth * 2.0f));
     DrawBox(shaderID, model, backScale, darkWood);
 
-    // 왼쪽면
-    glm::mat4 left = glm::translate(glm::mat4(1.0f), glm::vec3((xFront + xBack) / 2.0f, yBase, posZ - zWidth));
+    // 2. 왼쪽판 (Left Panel) : 로컬 Z = -1.5
+    glm::mat4 left = glm::translate(baseMat, glm::vec3(0.0f, yBase, -zWidth));
     glm::mat4 leftScale = glm::scale(left, glm::vec3(1.5f, 3.5f, 0.1f));
     DrawBox(shaderID, model, leftScale, darkWood);
 
-    // 오른쪽면
-    glm::mat4 right = glm::translate(glm::mat4(1.0f), glm::vec3((xFront + xBack) / 2.0f, yBase, posZ + zWidth));
+    // 3. 오른쪽판 (Right Panel) : 로컬 Z = +1.5
+    glm::mat4 right = glm::translate(baseMat, glm::vec3(0.0f, yBase, zWidth));
     glm::mat4 rightScale = glm::scale(right, glm::vec3(1.5f, 3.5f, 0.1f));
     DrawBox(shaderID, model, rightScale, darkWood);
 
-    // 윗면
-    glm::mat4 top = glm::translate(glm::mat4(1.0f), glm::vec3((xFront + xBack) / 2.0f, 1.5f, posZ));
-    glm::mat4 topScale = glm::scale(top, glm::vec3(1.5f, 0.1f, zWidth * 2.0f));
-    DrawBox(shaderID, model, topScale, darkWood);
+    // 4. 윗판/아랫판
+    glm::mat4 top = glm::translate(baseMat, glm::vec3(0.0f, 1.5f, 0.0f));
+    DrawBox(shaderID, model, glm::scale(top, glm::vec3(1.5f, 0.1f, zWidth * 2.0f)), darkWood);
 
-    // 바닥면
-    glm::mat4 bottom = glm::translate(glm::mat4(1.0f), glm::vec3((xFront + xBack) / 2.0f, -2.0f, posZ));
-    glm::mat4 bottomScale = glm::scale(bottom, glm::vec3(1.5f, 0.1f, zWidth * 2.0f));
-    DrawBox(shaderID, model, bottomScale, darkWood);
+    glm::mat4 bottom = glm::translate(baseMat, glm::vec3(0.0f, -2.0f, 0.0f));
+    DrawBox(shaderID, model, glm::scale(bottom, glm::vec3(1.5f, 0.1f, zWidth * 2.0f)), darkWood);
 
-    // --- 문 그리기 (애니메이션 적용) ---
-    // 왼쪽 문
-    glm::mat4 lHinge = glm::translate(glm::mat4(1.0f), glm::vec3(xFront, yBase, posZ - zWidth));
-    lHinge = glm::rotate(lHinge, glm::radians(-currentDoorAngle), glm::vec3(0.0f, 1.0f, 0.0f));
+    // 5. 문 (Doors)
+    // 왼쪽 문 (Hinge at Z = -zWidth, X = -0.75)
+    glm::mat4 lHinge = glm::translate(baseMat, glm::vec3(-0.75f, yBase, -zWidth));
+    lHinge = glm::rotate(lHinge, glm::radians(-currentDoorAngle), glm::vec3(0.0f, 1.0f, 0.0f)); // 문 여는 회전
 
     glm::mat4 lDoor = glm::translate(lHinge, glm::vec3(0.0f, 0.0f, zWidth / 2.0f));
-    glm::mat4 lDoorScale = glm::scale(lDoor, glm::vec3(0.1f, 3.4f, zWidth));
-    DrawBox(shaderID, model, lDoorScale, lightWood);
+    DrawBox(shaderID, model, glm::scale(lDoor, glm::vec3(0.1f, 3.4f, zWidth)), lightWood);
 
-    // 왼쪽 문 손잡이
+    // 손잡이
     glm::mat4 lKnob = glm::translate(lHinge, glm::vec3(-0.1f, 0.0f, zWidth - 0.2f));
-    glm::mat4 knobScale = glm::scale(lKnob, glm::vec3(0.1f, 0.2f, 0.1f));
-    DrawBox(shaderID, model, knobScale, gold);
+    DrawBox(shaderID, model, glm::scale(lKnob, glm::vec3(0.1f, 0.2f, 0.1f)), gold);
 
     // 오른쪽 문
-    glm::mat4 rHinge = glm::translate(glm::mat4(1.0f), glm::vec3(xFront, yBase, posZ + zWidth));
+    glm::mat4 rHinge = glm::translate(baseMat, glm::vec3(-0.75f, yBase, zWidth));
     rHinge = glm::rotate(rHinge, glm::radians(currentDoorAngle), glm::vec3(0.0f, 1.0f, 0.0f));
 
     glm::mat4 rDoor = glm::translate(rHinge, glm::vec3(0.0f, 0.0f, -zWidth / 2.0f));
-    glm::mat4 rDoorScale = glm::scale(rDoor, glm::vec3(0.1f, 3.4f, zWidth));
-    DrawBox(shaderID, model, rDoorScale, lightWood);
+    DrawBox(shaderID, model, glm::scale(rDoor, glm::vec3(0.1f, 3.4f, zWidth)), lightWood);
 
-    // 오른쪽 문 손잡이
+    // 손잡이
     glm::mat4 rKnob = glm::translate(rHinge, glm::vec3(-0.1f, 0.0f, -zWidth + 0.2f));
-    // 오른쪽 손잡이는 변환 행렬에 스케일 적용이 안 되어 있었으므로 여기서 적용
-    glm::mat4 rKnobScaled = glm::scale(rKnob, glm::vec3(0.1f, 0.2f, 0.1f));
-    DrawBox(shaderID, model, rKnobScaled, gold);
+    DrawBox(shaderID, model, glm::scale(rKnob, glm::vec3(0.1f, 0.2f, 0.1f)), gold);
 }
+
