@@ -32,5 +32,6 @@ public:
 	bool GenerateBreakableWalls(float probability);
     bool BreakWall(glm::vec3 playerPos, glm::vec3 playerFront); // 벽 부수는 함수
 	void UpdateBreakWalls(float deltaTime); // 부서지는 벽 상태 업데이트
+	glm::vec3 GetRandomOpenPos(); // 빈 공간 랜덤 좌표 반환
 };
 

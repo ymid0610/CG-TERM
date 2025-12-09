@@ -33,8 +33,9 @@ Player player;   // 플레이어 객체
 // 맵의 빈 공간 좌표를 잘 확인해서 넣어주세요. (예: 10.0, 4.0)
 Wardrobe wardrobe(5.0f, 5.0f);
 
-//test
+//Ghost
 Ghost ghost(glm::vec3(3.0f, -1.0f, 5.0f));
+bool isGhostBGM = false;
 
 bool isGameClear = false;
 bool isHit = false; // 유령충돌 플래그
@@ -277,7 +278,43 @@ void Timer(int value) {
 		isHit = ghost.Update(exitPos, maze);
     }
 
+    float dist = glm::distance(player.pos, ghost.GetPos());
+
+    // 감지 거리 설정 (예: 10.0f 거리 이내)
+    float detectRange = 10.0f;
+
+    if (dist < detectRange) {
+        // [상황 1] 유령이 가까이 있고, 아직 공포 BGM이 아닐 때 -> 공포 BGM 재생
+        if (!isGhostBGM) {
+            soundManager.PlayBGM("NearByGhost.mp3");
+            soundManager.SetBGMVolume(300); 
+            isGhostBGM = true; // 상태 변경
+        }
+    }
+    else {
+        // [상황 2] 유령이 멀어졌고, 현재 공포 BGM이 재생 중일 때 -> 원래 BGM 복구
+        if (isGhostBGM) {
+            soundManager.PlayBGM("Dead_Silence_Soundtrack.mp3");
+            soundManager.SetBGMVolume(300); // 원래 설정했던 볼륨으로 복구
+            isGhostBGM = false; // 상태 변경
+        }
+    }
+
     if (isHit) {
+        // 효과음
+        soundManager.PlaySFX("HitGhost.mp3");
+        soundManager.SetSFXVolume(500);
+
+        // 랜덤위치로 이동
+        glm::vec3 randPos = maze.GetRandomOpenPos();
+
+        // 플레이어의 Y(높이)는 유지하고 X, Z만 변경
+        // (플레이어 생성자에서 Y가 -1.0f로 설정되어 있으므로 이를 유지해야 함)
+        player.pos.x = randPos.x;
+        player.pos.z = randPos.z;
+
+        
+        // 체력깎음
         player.hp -= 10;
         std::cout << "유령과 충돌!" << std::endl;
         std::cout << "남은체력 : " << player.hp << std::endl;

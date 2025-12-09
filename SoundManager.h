@@ -4,8 +4,10 @@
 class SoundManager
 {
 public:
+    int currentSFXVolume;
     SoundManager();
     ~SoundManager();
+
 
     // 배경음악 재생 (반복)
     void PlayBGM(std::string fileName);
@@ -18,4 +20,7 @@ public:
 
 	// 배경음악 볼륨 설정 (0 ~ 1000)
     void SetBGMVolume(int volume);
+
+	// 효과음 볼륨 설정 (0 ~ 1000)
+    void SetSFXVolume(int volume);
 };

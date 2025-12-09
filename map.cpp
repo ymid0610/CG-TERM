@@ -196,3 +196,31 @@ void MazeMap::UpdateBreakWalls(float deltaTime) {
         }
     }
 }
+
+glm::vec3 MazeMap::GetRandomOpenPos() {
+    std::vector<std::pair<int, int>> openSlots;
+
+    // 맵 전체를 돌면서 '길(0)'인 곳의 좌표를 수집
+    for (int z = 0; z < MAP_SIZE; z++) {
+        for (int x = 0; x < MAP_SIZE; x++) {
+            if (mapData[z][x] == 0) {
+                openSlots.push_back({ z, x });
+            }
+        }
+    }
+
+    // 갈 곳이 없다면 원점 반환 (예외 처리)
+    if (openSlots.empty()) return glm::vec3(0.0f, 0.0f, 0.0f);
+
+    // 랜덤하게 하나 뽑기
+    std::random_device rd;
+    std::mt19937 gen(rd());
+    std::uniform_int_distribution<> dis(0, openSlots.size() - 1);
+
+    int idx = dis(gen);
+    int selectedZ = openSlots[idx].first;
+    int selectedX = openSlots[idx].second;
+
+    // 월드 좌표로 변환하여 반환 (높이는 0으로 설정, main에서 처리)
+    return glm::vec3(selectedX * WALL_SIZE, 0.0f, selectedZ * WALL_SIZE);
+}

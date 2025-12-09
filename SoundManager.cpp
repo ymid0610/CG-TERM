@@ -7,6 +7,7 @@
 
 SoundManager::SoundManager() {
     // 초기화가 필요하다면 여기서 수행
+    currentSFXVolume = 1000;
 }
 
 SoundManager::~SoundManager() {
@@ -62,5 +63,18 @@ void SoundManager::SetBGMVolume(int volume) {
     if (volume > 1000) volume = 1000;
 
     std::string cmd = "setaudio bgm volume to " + std::to_string(volume);
+    mciSendStringA(cmd.c_str(), NULL, 0, NULL);
+}
+
+void SoundManager::SetSFXVolume(int volume) {
+    if (volume < 0) volume = 0;
+    if (volume > 1000) volume = 1000;
+
+    // 1. 변수에 값을 저장 (나중에 PlaySFX가 호출될 때 쓰임)
+    currentSFXVolume = volume;
+
+    // 2. 만약 현재 재생 중인 효과음이 있다면 즉시 적용 (선택 사항)
+    // 짧은 효과음은 이게 큰 의미 없지만, 긴 효과음을 위해 넣어두면 좋습니다.
+    std::string cmd = "setaudio sfx volume to " + std::to_string(volume);
     mciSendStringA(cmd.c_str(), NULL, 0, NULL);
 }
