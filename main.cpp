@@ -341,7 +341,17 @@ void Keyboard(unsigned char key, int x, int y) {
     switch (key) {
     case '1': player.viewMode = 1; break;
     case '3': player.viewMode = 3; break;
-    case 'e': player.isFlashlightOn = !player.isFlashlightOn; break;
+    case 'e': player.isFlashlightOn = !player.isFlashlightOn; 
+        if (player.isFlashlightOn) {
+            soundManager.PlaySFX("light-switch-on.mp3");
+            soundManager.SetSFXVolume(500);
+        }
+        else {
+            soundManager.PlaySFX("light-switch-off.mp3");
+            soundManager.SetSFXVolume(500);
+        }
+        
+        break;
     case 'j': player.cameraAngle += glm::radians(10.0f); break;
     case 'k': player.cameraDistance += 0.5f; break;
     case 'K': if (player.cameraDistance > 2.0f) player.cameraDistance -= 0.5f; break;
