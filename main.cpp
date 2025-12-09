@@ -244,8 +244,13 @@ void Keyboard(unsigned char key, int x, int y) {
     case 'k': player.cameraDistance += 0.5f; break;
     case 'K': if (player.cameraDistance > 2.0f) player.cameraDistance -= 0.5f; break;
 
-        // [추가] F키로 옷장 상호작용
-    case 'f':
+        
+    case 'f': // f키로 상호작용
+        // [수정] 1. 플레이어가 바라보는 방향(Vector) 계산
+        // (Target - Position)을 정규화하면 바라보는 방향 벡터가 됩니다.
+        glm::vec3 cameraFront = glm::normalize(player.GetCameraTarget() - player.GetCameraPos());
+        // [수정] 2. 위치와 방향을 함께 전달하여 벽 파괴 시도
+        maze.BreakWall(player.pos, cameraFront);
         hide = wardrobe.TryInteract(player.pos);
         if (hide == 1) player.isHide = !player.isHide;
 

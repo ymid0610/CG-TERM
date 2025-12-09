@@ -59,14 +59,8 @@ bool MazeMap::CheckCollision(float x, float z) {
     // 배열 범위 체크
     if (gridX < 0 || gridX >= MAP_SIZE || gridZ < 0 || gridZ >= MAP_SIZE) return true;
 
-    // 벽(1)이면 충돌로 간주
-    if (mapData[gridZ][gridX] == 1) return true;
-
-	if (mapData[gridZ][gridX] == 2) {
-		// 부셔지는 벽과 충돌 시 벽을 없앰
-		mapData[gridZ][gridX] = 0;
-		return false; // 충돌 후에는 통과 가능
-	}
+    // 벽1, 2이면 충돌로 간주
+    if (mapData[gridZ][gridX] == 1 || mapData[gridZ][gridX] == 2) return true;
 
     return false;
 }
@@ -148,4 +142,32 @@ bool MazeMap::GenerateBreakableWalls(float probability) {
 		}
 	}
 	return true;
+}
+
+bool MazeMap::BreakWall(glm::vec3 playerPos, glm::vec3 playerFront) {
+    // 1. 상호작용 거리 설정 (벽 크기보다 약간 작게 설정하거나 비슷하게 설정)
+    // 너무 길면 멀리서도 부서지고, 너무 짧으면 벽에 비벼야 부서집니다.
+    float interactionDist = WALL_SIZE * 0.7f;
+
+    // 2. 플레이어 위치에서 시선 방향으로 일정 거리만큼 앞선 좌표 계산
+    // y축(높이)은 무시하고 x, z 평면에서의 위치만 계산합니다.
+    glm::vec3 targetPos = playerPos + (glm::normalize(playerFront) * interactionDist);
+
+    // 3. 월드 좌표 -> 배열 인덱스로 변환 (CheckCollision과 동일한 로직)
+    int gridX = (int)((targetPos.x + WALL_SIZE / 2) / WALL_SIZE);
+    int gridZ = (int)((targetPos.z + WALL_SIZE / 2) / WALL_SIZE);
+
+    // 4. 배열 범위 체크 (인덱스가 맵을 벗어나지 않도록)
+    if (gridX < 0 || gridX >= MAP_SIZE || gridZ < 0 || gridZ >= MAP_SIZE) {
+        return false;
+    }
+
+    // 5. 부서지는 벽(2)인지 확인
+    if (mapData[gridZ][gridX] == 2) {
+        mapData[gridZ][gridX] = 0; // 벽을 길(0)로 변경 -> 파괴!
+        std::cout << "벽이 파괴되었습니다! (" << gridX << ", " << gridZ << ")" << std::endl;
+        return true; // 파괴 성공
+    }
+
+    return false; // 부실 수 있는 벽이 아님
 }

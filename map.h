@@ -24,4 +24,5 @@ public:
     bool CheckVictory(float x, float z);   // 도착했는지 확인
 	bool GenerateMaze(int rows, int cols); // 미로 생성 함수
 	bool GenerateBreakableWalls(float probability);
+    bool BreakWall(glm::vec3 playerPos, glm::vec3 playerFront); // 벽 부수는 함수
 };
