@@ -108,6 +108,9 @@ int bmp_E[] = { 1,1,1,1,1, 1,0,0,0,0, 1,1,1,1,0, 1,0,0,0,0, 1,1,1,1,1 };
 int bmp_S[] = { 1,1,1,1,1, 1,0,0,0,0, 1,1,1,1,1, 0,0,0,0,1, 1,1,1,1,1 };
 int bmp_C[] = { 1,1,1,1,1, 1,0,0,0,0, 1,0,0,0,0, 1,0,0,0,0, 1,1,1,1,1 };
 int bmp_P[] = { 1,1,1,1,1, 1,0,0,0,1, 1,1,1,1,1, 1,0,0,0,0, 1,0,0,0,0 };
+int bmp_L[] = { 1,0,0,0,0, 1,0,0,0,0, 1,0,0,0,0, 1,0,0,0,0, 1,1,1,1,1 };
+int bmp_R[] = { 1,1,1,1,0, 1,0,0,0,1, 1,1,1,1,0, 1,0,1,0,0, 1,0,0,1,1 };
+int bmp_Excl[] = { 0,0,1,0,0, 0,0,1,0,0, 0,0,1,0,0, 0,0,0,0,0, 0,0,1,0,0 }; // 느낌표(!)
 
 
 void InitWardrobes(int count) {
@@ -316,6 +319,39 @@ void DrawScene() {
         return;
     }
 
+    if (isGameClear) {
+        // 1. 카메라 고정 (타이틀과 동일)
+        glm::mat4 view = glm::lookAt(glm::vec3(0.0f, 0.0f, 18.0f), glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 1.0f, 0.0f));
+        glm::mat4 proj = glm::perspective(glm::radians(45.0f), (float)width / height, 0.1f, 100.0f);
+
+        glUniformMatrix4fv(glGetUniformLocation(shaderProgramID, "view"), 1, GL_FALSE, glm::value_ptr(view));
+        glUniformMatrix4fv(glGetUniformLocation(shaderProgramID, "proj"), 1, GL_FALSE, glm::value_ptr(proj));
+
+        // 조명 밝게 설정
+        glUniform1i(glGetUniformLocation(shaderProgramID, "lightOn"), 0);
+        glUniform3f(glGetUniformLocation(shaderProgramID, "lightColor"), 1.0f, 1.0f, 1.0f);
+        glUniform1f(glGetUniformLocation(shaderProgramID, "ambientStrength"), 1.0f);
+
+        // 2. 텍스트 그리기 ("CLEAR!!!")
+        // 노란색으로 축하!
+        glm::vec3 cYellow(1.0f, 1.0f, 0.0f);
+
+        // 좌표 계산: 중앙 정렬
+        DrawBitmapChar(bmp_C, glm::vec3(-7.5f, 0.0f, 0.0f), cYellow);
+        DrawBitmapChar(bmp_L, glm::vec3(-4.5f, 0.0f, 0.0f), cYellow);
+        DrawBitmapChar(bmp_E, glm::vec3(-1.5f, 0.0f, 0.0f), cYellow);
+        DrawBitmapChar(bmp_A, glm::vec3(1.5f, 0.0f, 0.0f), cYellow);
+        DrawBitmapChar(bmp_R, glm::vec3(4.5f, 0.0f, 0.0f), cYellow);
+
+        // 느낌표 3개
+        DrawBitmapChar(bmp_Excl, glm::vec3(7.5f, 0.0f, 0.0f), cYellow);
+        DrawBitmapChar(bmp_Excl, glm::vec3(9.0f, 0.0f, 0.0f), cYellow);
+        DrawBitmapChar(bmp_Excl, glm::vec3(10.5f, 0.0f, 0.0f), cYellow);
+
+        glutSwapBuffers();
+        return; // 게임 화면 그리지 않고 종료
+    }
+
     glm::vec3 cameraPos = player.GetCameraPos();
     glm::vec3 cameraTarget = player.GetCameraTarget();
     glm::vec3 cameraUp = glm::vec3(0.0f, 1.0f, 0.0f);
@@ -404,75 +440,79 @@ void Timer(int value) {
     bool insideAny = false;
     Wardrobe* activeWardrobe = nullptr;
 
-    // 모든 옷장 업데이트
-    for (auto& w : wardrobes) {
-        w.Update(player.pos, player.cameraAngle, player.pitch, player.viewMode, player.isFlashlightOn);
-        if (w.GetState() != STATE_OUTSIDE) {
-            insideAny = true;
-            activeWardrobe = &w;
+
+    if (!isGameClear) {
+        // 모든 옷장 업데이트
+        for (auto& w : wardrobes) {
+            w.Update(player.pos, player.cameraAngle, player.pitch, player.viewMode, player.isFlashlightOn);
+            if (w.GetState() != STATE_OUTSIDE) {
+                insideAny = true;
+                activeWardrobe = &w;
+            }
         }
-    }
 
-    if (!insideAny) {
-        player.Update(keyState, maze);
-    }
-    else {
-        player.currentAnim = IDLE;
-        if (player.currentStamina < player.maxStamina) player.currentStamina += 0.5f;
-    }
-
-    // --- 유령(Ghost) 여러 마리 업데이트 ---
-    isHit = false;
-    float minDist = 1e9f;
-    for (auto& g : ghosts) {
-        bool hit = g.Update(player.pos, maze, player.isHide);
-        if (hit) isHit = true;
-        float dist = glm::distance(player.pos, g.GetPos());
-        if (dist < minDist) minDist = dist;
-    }
-
-    // 감지 거리 설정 (예: 10.0f 거리 이내)
-    float detectRange = 15.0f;
-    if (minDist < detectRange) {
-        if (!isGhostBGM) {
-            soundManager.PlayBGM("NearByGhost.mp3");
-            soundManager.SetBGMVolume(300);
-            isGhostBGM = true;
+        if (!insideAny) {
+            player.Update(keyState, maze);
         }
-        // 거리 비례 밝기 어둡게
-		ambient = MAIN_LIGHT * (minDist / detectRange);
-    }
-    else {
-        if (isGhostBGM) {
-            soundManager.PlayBGM("Dead_Silence_Soundtrack.mp3");
-            soundManager.SetBGMVolume(300);
-            isGhostBGM = false;
+        else {
+            player.currentAnim = IDLE;
+            if (player.currentStamina < player.maxStamina) player.currentStamina += 0.5f;
         }
-		ambient = MAIN_LIGHT;
-    }
 
-    if (isHit) {
-        soundManager.PlaySFX("HitGhost.mp3");
-        soundManager.SetSFXVolume(500);
-
-        glm::vec3 randPos = maze.GetRandomOpenPos();
-        player.pos.x = randPos.x;
-        player.pos.z = randPos.z;
-
-        player.hp -= 10;
-        std::cout << "유령과 충돌!" << std::endl;
-        std::cout << "남은체력 : " << player.hp << std::endl;
-        if (player.hp <= 0) {
-            exit(0);
-        }
+        // --- 유령(Ghost) 여러 마리 업데이트 ---
         isHit = false;
-    }
+        float minDist = 1e9f;
+        for (auto& g : ghosts) {
+            bool hit = g.Update(player.pos, maze, player.isHide);
+            if (hit) isHit = true;
+            float dist = glm::distance(player.pos, g.GetPos());
+            if (dist < minDist) minDist = dist;
+        }
 
-    if (maze.CheckVictory(player.pos.x, player.pos.z)) {
-        std::cout << "Game Clear!" << std::endl;
-        isGameClear = true;
-    }
+        // 감지 거리 설정 (예: 10.0f 거리 이내)
+        float detectRange = 15.0f;
+        if (minDist < detectRange) {
+            if (!isGhostBGM) {
+                soundManager.PlayBGM("NearByGhost.mp3");
+                soundManager.SetBGMVolume(300);
+                isGhostBGM = true;
+            }
+            // 거리 비례 밝기 어둡게
+            ambient = MAIN_LIGHT * (minDist / detectRange);
+        }
+        else {
+            if (isGhostBGM) {
+                soundManager.PlayBGM("Dead_Silence_Soundtrack.mp3");
+                soundManager.SetBGMVolume(300);
+                isGhostBGM = false;
+            }
+            ambient = MAIN_LIGHT;
+        }
 
+        if (isHit) {
+            soundManager.PlaySFX("HitGhost.mp3");
+            soundManager.SetSFXVolume(500);
+
+            glm::vec3 randPos = maze.GetRandomOpenPos();
+            player.pos.x = randPos.x;
+            player.pos.z = randPos.z;
+
+            player.hp -= 10;
+            std::cout << "유령과 충돌!" << std::endl;
+            std::cout << "남은체력 : " << player.hp << std::endl;
+            if (player.hp <= 0) {
+                exit(0);
+            }
+            isHit = false;
+        }
+
+        if (maze.CheckVictory(player.pos.x, player.pos.z)) {
+            std::cout << "Game Clear!" << std::endl;
+            isGameClear = true;
+        }
+    
+    }
+    
     glutPostRedisplay();
     glutTimerFunc(16, Timer, 0);
 }
@@ -499,46 +539,53 @@ void Keyboard(unsigned char key, int x, int y) {
         return;
     }
 
-
     keyState[key] = true;
     int hide;
 
-    switch (key) {
-    case '1': player.viewMode = 1; break;
-    case '3': player.viewMode = 3; break;
-    case 'e': player.isFlashlightOn = !player.isFlashlightOn; 
-        if (player.isFlashlightOn) {
-            soundManager.PlaySFX("light-switch-on.mp3");
-            soundManager.SetSFXVolume(500);
-        }
-        else {
-            soundManager.PlaySFX("light-switch-off.mp3");
-            soundManager.SetSFXVolume(500);
-        }
-        
-        break;
-    case 'j': player.cameraAngle += glm::radians(10.0f); break;
-    case 'k': player.cameraDistance += 0.5f; break;
-    case 'K': if (player.cameraDistance > 2.0f) player.cameraDistance -= 0.5f; break;
-    case 'f': // f키로 상호작용
-        // [수정] 1. 플레이어가 바라보는 방향(Vector) 계산
-        // (Target - Position)을 정규화하면 바라보는 방향 벡터가 됩니다.
-        glm::vec3 cameraFront = glm::normalize(player.GetCameraTarget() - player.GetCameraPos());
-        // [수정] 2. 위치와 방향을 함께 전달하여 벽 파괴 시도
-        if (maze.BreakWall(player.pos, cameraFront)) soundManager.PlaySFX("BreakWall.aiff");
-
-        for (auto& w : wardrobes) {
-            int result = w.TryInteract(player.pos);
-            if (result == 1) {
-                player.isHide = !player.isHide;
-                soundManager.PlaySFX("Closet.mp3");
-                break; // 한 번에 하나의 옷장만 상호작용
+    if (!isGameClear) {
+        switch (key) {
+        case '1': player.viewMode = 1; break;
+        case '3': player.viewMode = 3; break;
+        case 'e': player.isFlashlightOn = !player.isFlashlightOn;
+            if (player.isFlashlightOn) {
+                soundManager.PlaySFX("light-switch-on.mp3");
+                soundManager.SetSFXVolume(500);
             }
-        }
+            else {
+                soundManager.PlaySFX("light-switch-off.mp3");
+                soundManager.SetSFXVolume(500);
+            }
 
-        break;
-    case 'q': exit(0); break;
+            break;
+        case 'j': player.cameraAngle += glm::radians(10.0f); break;
+        case 'k': player.cameraDistance += 0.5f; break;
+        case 'K': if (player.cameraDistance > 2.0f) player.cameraDistance -= 0.5f; break;
+        case 'f': // f키로 상호작용
+            // [수정] 1. 플레이어가 바라보는 방향(Vector) 계산
+            // (Target - Position)을 정규화하면 바라보는 방향 벡터가 됩니다.
+            glm::vec3 cameraFront = glm::normalize(player.GetCameraTarget() - player.GetCameraPos());
+            // [수정] 2. 위치와 방향을 함께 전달하여 벽 파괴 시도
+            if (maze.BreakWall(player.pos, cameraFront)) soundManager.PlaySFX("BreakWall.aiff");
+
+            for (auto& w : wardrobes) {
+                int result = w.TryInteract(player.pos);
+                if (result == 1) {
+                    player.isHide = !player.isHide;
+                    soundManager.PlaySFX("Closet.mp3");
+                    break; // 한 번에 하나의 옷장만 상호작용
+                }
+            }
+
+            break;
+        case 'q': exit(0); break;
+        }
     }
+    else {
+        switch (key) {
+		case 'q': exit(0); break;
+        }
+    }
+   
 }
 
 void KeyboardUp(unsigned char key, int x, int y) {
