@@ -14,7 +14,7 @@ void main(){
     // 모델 변환을 적용하여 월드 좌표 계산
     FragPos = vec3(model * vec4(vPos, 1.0));
     
-    // 화면상의 좌표 계산 (필수)
+    // 화면상의 좌표 계산
     gl_Position = proj * view * vec4(FragPos, 1.0);
     
     out_Color = faceColor;

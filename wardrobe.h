@@ -14,7 +14,6 @@
 class Wardrobe
 {
 public:
-    // [수정] 생성자에 rotation 추가 (기본값 0)
     Wardrobe(float x, float z, float rot);
     ~Wardrobe();
 
@@ -29,7 +28,7 @@ private:
     void DrawBox(GLuint shaderID, const Model& model, glm::mat4 modelMat, glm::vec3 color);
 
     float posX, posZ;
-    float rotation; // [추가] 옷장의 회전 각도 (Y축 기준)
+    float rotation; // 옷장의 회전 각도 (Y축 기준)
 
     float zWidth;
     float yBase;

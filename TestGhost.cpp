@@ -14,9 +14,7 @@ Ghost::Ghost(glm::vec3 startPos) {
     floatTime = 0.0f;
     wobbleTime = 0.0f;
 
-    // [색상 설정]
-    // 가산 혼합을 쓸 것이므로, 너무 밝으면 눈이 부십니다.
-    // 어두운 파란색/하늘색을 쓰면 은은하게 빛나는 유령이 됩니다.
+    // 색상 설정
     baseColor = glm::vec3(0.1f, 0.3f, 0.5f);
 }
 
@@ -24,13 +22,12 @@ void Ghost::DrawBox(GLuint shaderID, const Model& model, glm::mat4 modelMat, glm
     GLint modelLoc = glGetUniformLocation(shaderID, "model");
     GLint faceColorLoc = glGetUniformLocation(shaderID, "faceColor");
 
-    // [핵심 트릭] 셰이더 수정 없이 투명 효과 내기
     glEnable(GL_BLEND);
 
-    // 1. 가산 혼합: 색을 더해서 밝게 만듦 (검은색은 투명, 밝은색은 발광)
+    // 가산 혼합
     glBlendFunc(GL_ONE, GL_ONE);
 
-    // 2. 깊이 쓰기 끄기: 유령 내부의 뒷면이 가려지지 않고 겹쳐 보이게 함
+    // 깊이 쓰기 끄기 - 유령 내부의 뒷면이 가려지지 않고 겹쳐 보이게 함
     glDepthMask(GL_FALSE);
 
     glUniformMatrix4fv(modelLoc, 1, GL_FALSE, glm::value_ptr(modelMat));
@@ -39,7 +36,7 @@ void Ghost::DrawBox(GLuint shaderID, const Model& model, glm::mat4 modelMat, glm
     if (model.face_count > 0)
         glDrawElements(GL_TRIANGLES, model.face_count * 3, GL_UNSIGNED_INT, 0);
 
-    // [상태 복구] 다음 물체(플레이어, 벽 등)를 위해 설정을 원래대로 돌려놓음
+    // 상태 복구- 다음 물체를 위해 설정을 원래대로 돌려놓음
     glDepthMask(GL_TRUE);
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA); // 기본 블렌딩으로 복구
     glDisable(GL_BLEND);
@@ -89,7 +86,6 @@ bool Ghost::Update(glm::vec3 playerPos, MazeMap& maze, bool playerIsHide) {
     }
 
     // NORMAL 상태에서만 플레이어 추적
-    // 기존 추적 로직 (예시)
     int mapSize = MAP_SIZE;
     auto path = FindPath(maze, pos, playerPos, mapSize);
     if (!path.empty()) {
@@ -125,7 +121,7 @@ bool Ghost::Update(glm::vec3 playerPos, MazeMap& maze, bool playerIsHide) {
 		rotY = glm::degrees(atan2(direction.x, direction.z));
     }
 
-    // 2. 둥둥 뜨는 애니메이션
+    // 둥둥 뜨는 애니메이션
     floatTime += 0.05f;
     wobbleTime += 0.1f;
     pos.y = baseHeight + sin(floatTime) * 0.3f; // 위아래 움직임
@@ -164,12 +160,11 @@ void Ghost::Draw(GLuint shaderID, const Model& model) {
         float scale = 0.5f * (1.0f - t * 0.5f);
         glm::mat4 tailScale = glm::scale(tailMat, glm::vec3(scale, 0.2f, scale));
 
-        // [트릭] 색상을 어둡게 만들면 가산 혼합에서는 '투명'해 보입니다.
         glm::vec3 tailColor = baseColor * (1.0f - t * 0.9f); // 아래로 갈수록 어두워짐
         DrawBox(shaderID, model, tailScale, tailColor);
     }
 
-    // 3. 팔 (흐느적거림)
+    // 3. 팔
     float armWobble = sin(wobbleTime * 0.8f) * 20.0f;
 
     glm::mat4 lArmMat = glm::translate(headMat, glm::vec3(-0.4f, -0.2f, 0.0f));

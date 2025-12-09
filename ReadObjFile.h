@@ -70,7 +70,7 @@ inline void read_obj_file(const char* filename, Model* model) {
 		else if (line[0] == 'f' && line[1] == ' ') {
 			unsigned int v1, v2, v3;
 			int result = sscanf_s(line + 2, "%u %u %u", &v1, &v2, &v3);
-			model->faces[face_index].v1 = v1 - 1; // OBJ indices start at 1
+			model->faces[face_index].v1 = v1 - 1; 
 			model->faces[face_index].v2 = v2 - 1;
 			model->faces[face_index].v3 = v3 - 1;
 			face_index++;

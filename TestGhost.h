@@ -24,8 +24,8 @@ public:
 
     GhostState state = NORMAL;
     float targetY = -1.0f;      // 최초 y위치 저장
-    float hideY = 20.0f;        // 숨었을 때 올라갈 y위치(원하는 값으로 조정)
-    float yMoveSpeed = 0.1f;    // y축 이동 속도(조정 가능)
+    float hideY = 20.0f;        // 숨었을 때 올라갈 y위치
+    float yMoveSpeed = 0.1f;    // y축 이동 속도
 
     Ghost(glm::vec3 startPos);
 	bool Update(glm::vec3 playerPos, MazeMap& maze, bool playerIsHide);

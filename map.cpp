@@ -28,7 +28,7 @@ void MazeMap::Draw(GLuint shaderProgramID, void (*DrawCubeFunc)(glm::mat4, glm::
                 float worldZ = z * WALL_SIZE;
 
                 modelMat = glm::translate(modelMat, glm::vec3(worldX, 0.0f, worldZ));
-                modelMat = glm::scale(modelMat, glm::vec3(WALL_SIZE, WALL_HEIGHT, WALL_SIZE)); // 높이 3짜리 벽
+                modelMat = glm::scale(modelMat, glm::vec3(WALL_SIZE, WALL_HEIGHT, WALL_SIZE)); // 높이
 
                 // 회색 벽
                 DrawCubeFunc(modelMat, glm::vec3(0.5f, 0.5f, 0.5f));
@@ -65,9 +65,9 @@ void MazeMap::Draw(GLuint shaderProgramID, void (*DrawCubeFunc)(glm::mat4, glm::
     }
 }
 
-// 충돌 감지 (매우 중요)
+// 충돌 감지
 bool MazeMap::CheckCollision(float x, float z) {
-    // 플레이어의 경계(반지름)를 고려한 충돌 체크
+    // 플레이어의 경계를 고려한 충돌 체크
     float minX = x - PLAYER_RADIUS;
     float maxX = x + PLAYER_RADIUS;
     float minZ = z - PLAYER_RADIUS;
@@ -166,19 +166,17 @@ bool MazeMap::GenerateBreakableWalls(float probability) {
 }
 
 bool MazeMap::BreakWall(glm::vec3 playerPos, glm::vec3 playerFront) {
-    // 1. 상호작용 거리 설정 (벽 크기보다 약간 작게 설정하거나 비슷하게 설정)
-    // 너무 길면 멀리서도 부서지고, 너무 짧으면 벽에 비벼야 부서집니다.
+    // 상호작용 거리 설정
     float interactionDist = WALL_SIZE * 0.7f;
 
-    // 2. 플레이어 위치에서 시선 방향으로 일정 거리만큼 앞선 좌표 계산
-    // y축(높이)은 무시하고 x, z 평면에서의 위치만 계산합니다.
+    // 플레이어 위치에서 시선 방향으로 일정 거리만큼 앞선 좌표 계산
     glm::vec3 targetPos = playerPos + (glm::normalize(playerFront) * interactionDist);
 
-    // 3. 월드 좌표 -> 배열 인덱스로 변환 (CheckCollision과 동일한 로직)
+    // 월드 좌표 -> 배열 인덱스로 변환
     int gridX = (int)((targetPos.x + WALL_SIZE / 2) / WALL_SIZE);
     int gridZ = (int)((targetPos.z + WALL_SIZE / 2) / WALL_SIZE);
 
-    // 4. 배열 범위 체크 (인덱스가 맵을 벗어나지 않도록)
+    // 배열 범위 체크 (인덱스가 맵을 벗어나지 않도록)
     if (gridX < 0 || gridX >= MAP_SIZE || gridZ < 0 || gridZ >= MAP_SIZE) {
         return false;
     }
@@ -194,7 +192,7 @@ bool MazeMap::BreakWall(glm::vec3 playerPos, glm::vec3 playerFront) {
 }
 
 void MazeMap::UpdateBreakWalls(float deltaTime) {
-    float downSpeed = 0.02f * deltaTime; // 초당 2만큼 내려감 (조절 가능)
+    float downSpeed = 0.02f * deltaTime; // 초당 2만큼 내려감
     for (int z = 0; z < MAP_SIZE; ++z) {
         for (int x = 0; x < MAP_SIZE; ++x) {
             if (mapData[z][x] == 2 && breakWallState[z][x].isBreaking) {
@@ -212,7 +210,7 @@ void MazeMap::UpdateBreakWalls(float deltaTime) {
 glm::vec3 MazeMap::GetRandomOpenPos() {
     std::vector<std::pair<int, int>> openSlots;
 
-    // 맵 전체를 돌면서 '길(0)'인 곳의 좌표를 수집
+    // 맵 전체를 돌면서 길(0)인 곳의 좌표를 수집
     for (int z = 0; z < MAP_SIZE; z++) {
         for (int x = 0; x < MAP_SIZE; x++) {
             if (mapData[z][x] == 0) {
@@ -221,7 +219,7 @@ glm::vec3 MazeMap::GetRandomOpenPos() {
         }
     }
 
-    // 갈 곳이 없다면 원점 반환 (예외 처리)
+    // 예외 처리
     if (openSlots.empty()) return glm::vec3(0.0f, 0.0f, 0.0f);
 
     // 랜덤하게 하나 뽑기
@@ -233,6 +231,6 @@ glm::vec3 MazeMap::GetRandomOpenPos() {
     int selectedZ = openSlots[idx].first;
     int selectedX = openSlots[idx].second;
 
-    // 월드 좌표로 변환하여 반환 (높이는 0으로 설정, main에서 처리)
+    // 월드 좌표로 변환하여 반환
     return glm::vec3(selectedX * WALL_SIZE, 0.0f, selectedZ * WALL_SIZE);
 }

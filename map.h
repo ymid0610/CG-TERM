@@ -1,7 +1,5 @@
 #pragma once
 #include <vector>
-
-// [추가] GLuint 자료형을 인식하기 위해 glew.h를 포함해야 합니다.
 #include <gl/glew.h> 
 #include <gl/glm/glm.hpp>
 
@@ -18,14 +16,12 @@ struct BreakWallInfo {
 
 class MazeMap {
 public:
-    // 0: 길, 1: 벽, 2: 도착지점
     int mapData[MAP_SIZE][MAP_SIZE];
     std::vector<int> maze;
     BreakWallInfo breakWallState[MAP_SIZE][MAP_SIZE];
 
     MazeMap();
     void Init();
-    // 이제 GLuint를 인식할 수 있어서 오류가 사라집니다.
     void Draw(GLuint shaderProgramID, void (*DrawCubeFunc)(glm::mat4, glm::vec3));
     bool CheckCollision(float x, float z); // 이동하려는 위치가 벽인지 확인
     bool CheckVictory(float x, float z);   // 도착했는지 확인

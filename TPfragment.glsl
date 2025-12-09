@@ -29,7 +29,7 @@ void main(){
             float diff = max(dot(norm, lightDirectionVector), 0.0);
             vec3 diffuse = diff * lightColor * 1.5; 
             
-            // [수정] 거리 감쇠 (빛이 더 멀리 가도록 수치 완화)
+            // 거리 감쇠 (빛이 더 멀리 가도록 수치 완화)
             float distance = length(lightPos - FragPos);
             // 기존: 1.0, 0.09, 0.032 -> 수정: 1.0, 0.045, 0.0075 (빛이 훨씬 멀리 감)
             float attenuation = 1.0 / (1.0 + 0.045 * distance + 0.0075 * (distance * distance));

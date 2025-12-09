@@ -1,7 +1,6 @@
 #include "wardrobe.h"
 #include <iostream>
 
-// [수정] 생성자: 회전 각도 입력 받음
 Wardrobe::Wardrobe(float x, float z, float rot) {
     posX = x;
     posZ = z;
@@ -31,8 +30,6 @@ void Wardrobe::DrawBox(GLuint shaderID, const Model& model, glm::mat4 modelMat, 
 }
 
 void Wardrobe::Update(glm::vec3& playerPos, float& cameraAngle, float& pitch, int& viewMode, bool& isFlashlightOn) {
-    // [수정] 회전을 고려한 숨는 위치 계산
-    // 옷장 중심에서 "뒤쪽"으로 0.5만큼, "위쪽"으로 이동한 로컬 벡터를 회전 변환
     glm::mat4 transMat = glm::mat4(1.0f);
     transMat = glm::rotate(transMat, glm::radians(rotation), glm::vec3(0.0f, 1.0f, 0.0f));
 
@@ -45,7 +42,6 @@ void Wardrobe::Update(glm::vec3& playerPos, float& cameraAngle, float& pitch, in
     float hiddenX = posX + worldHidePos.x;
     float hiddenZ = posZ + worldHidePos.z;
 
-    // ... (기존 스위치문 로직 동일) ...
     switch (currentState) {
     case STATE_OUTSIDE:
         targetAngle = 0.0f;
@@ -54,12 +50,8 @@ void Wardrobe::Update(glm::vec3& playerPos, float& cameraAngle, float& pitch, in
         targetAngle = 90.0f;
         if (currentDoorAngle >= 90.0f) {
             playerPos = glm::vec3(hiddenX, -1.0f, hiddenZ);
-            // [수정된 부분] ----------------------------------------------------
-            // 플레이어 카메라 로직상 0도는 -Z, 90도는 -X를 봅니다.
-            // 옷장의 문은 로컬 좌표계에서 -X 방향에 있습니다.
-            // 따라서 (90도 - 옷장회전각도)를 해야 정확히 문 밖을 바라봅니다.
             cameraAngle = glm::radians(90.0f - rotation);
-            // -----------------------------------------------------------------
+            
 
             pitch = 0.0f;           // 정면을 바라봄
             viewMode = 1;           // 1인칭 시점 강제
@@ -92,7 +84,7 @@ void Wardrobe::Update(glm::vec3& playerPos, float& cameraAngle, float& pitch, in
 }
 
 int Wardrobe::TryInteract(glm::vec3 playerPos) {
-    // [수정] 거리 기반 상호작용으로 변경 (회전 무관하게 작동)
+    // 거리 기반 상호작용으로 변경
     float dist = glm::distance(playerPos, glm::vec3(posX, -1.0f, posZ));
 
     // 플레이어가 옷장 중심에서 2.5 거리 이내에 있으면 상호작용 가능
@@ -109,9 +101,9 @@ int Wardrobe::TryInteract(glm::vec3 playerPos) {
     return 0;
 }
 
-// [핵심 수정] Draw 함수를 로컬 좌표계 + Model Matrix 방식으로 변경
+// Draw 함수를 로컬 좌표계 + Model Matrix 방식
 void Wardrobe::Draw(GLuint shaderID, const Model& model) {
-    // 1. 기본 변환 행렬 (위치 이동 -> 회전)
+    // 기본 변환 행렬 (위치 이동 -> 회전)
     glm::mat4 baseMat = glm::mat4(1.0f);
     baseMat = glm::translate(baseMat, glm::vec3(posX, 0.0f, posZ));
     baseMat = glm::rotate(baseMat, glm::radians(rotation), glm::vec3(0.0f, 1.0f, 0.0f));

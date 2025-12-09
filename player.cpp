@@ -28,7 +28,7 @@ Player::Player() {
 }
 
 void Player::Update(bool keyState[], MazeMap& maze) {
-    // 1. 이동 로직
+    // 이동 로직
     float inputZ = 0.0f; float inputX = 0.0f;
     if (keyState['w']) inputZ -= 1.0f;
     if (keyState['s']) inputZ += 1.0f;
@@ -62,7 +62,7 @@ void Player::Update(bool keyState[], MazeMap& maze) {
             if (currentStamina < maxStamina) currentStamina += 0.2f;
         }
 
-        // [동시 이동 충돌 처리]
+        // 동시 이동 충돌 처리
         float nextX = pos.x + moveDirX * currentSpeed;
         float nextZ = pos.z + moveDirZ * currentSpeed;
 
@@ -80,7 +80,6 @@ void Player::Update(bool keyState[], MazeMap& maze) {
             if (!maze.CheckCollision(pos.x, nextZ)) {
                 pos.z = nextZ;
             }
-            // 둘 다 충돌이면 멈춤
         }
     }
     else {
@@ -97,7 +96,7 @@ void Player::Update(bool keyState[], MazeMap& maze) {
     // 회전 업데이트
     rotY = glm::degrees(cameraAngle) + 180.0f;
 
-    // 2. 애니메이션 계산
+    // 애니메이션 계산
     float speed = 0.0f; float amplitude = 0.0f;
     if (currentAnim == WALK) { speed = 0.2f; amplitude = 30.0f; }
     else if (currentAnim == RUN) { speed = 0.25f; amplitude = 60.0f; }
@@ -166,9 +165,6 @@ void Player::Draw(GLuint shaderID, Model& cubeModel, void (*DrawCubeFunc)(glm::m
         glm::mat4 lightMat = glm::translate(rArmMat, glm::vec3(0.0f, -0.5f, 0.0f));
         glm::mat4 lightModel = glm::scale(lightMat, glm::vec3(0.1f, 0.4f, 0.1f));
         DrawCubeFunc(lightModel, glm::vec3(0.1f, 0.1f, 0.1f));
-
-        // 조명 위치 업데이트 (메인 루프에서 사용할 값을 여기서 업데이트하는 방식)
-        // 실제 uniform 업데이트는 main에서 이루어짐
     }
 
     // 5. 다리

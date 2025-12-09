@@ -4,14 +4,14 @@
 #include <gl/glm/ext.hpp>
 #include <vector>
 #include "ReadObjFile.h"
-#include "map.h" // 충돌 체크를 위해 필요
+#include "map.h" 
 
 // 애니메이션 상태 열거형
 enum AnimState { IDLE, WALK, RUN };
 
 class Player {
 public:
-    // --- 멤버 변수 ---
+    // 멤버 변수
     glm::vec3 pos;          // 위치
     float rotY;             // 회전 (Y축)
 	int hp;               // 체력
@@ -38,7 +38,7 @@ public:
     float maxStamina;
     float currentStamina;
 
-    // --- 멤버 함수 ---
+    // 멤버 함수
     Player(); // 생성자 (초기화)
 
     // 업데이트: 키 입력 처리, 이동, 충돌 체크, 애니메이션 계산
@@ -50,7 +50,7 @@ public:
     // 마우스 입력 처리
     void ProcessMouse(int x, int y, int width, int height);
 
-    // 카메라 뷰 행렬 계산용 헬퍼
+    // 카메라 뷰 행렬 계산용
     glm::vec3 GetCameraPos();
     glm::vec3 GetCameraTarget();
 };

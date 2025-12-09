@@ -10,8 +10,6 @@
 #include <random>
 #include <stdlib.h>
 #include <stdio.h>
-
-// 사용자 정의 헤더 파일 포함
 #include "ReadObjFile.h"
 #include "map.h"
 #include "player.h"
@@ -29,21 +27,27 @@ Model model;     // cube.obj 데이터
 MazeMap maze;    // 미로 맵 데이터
 Player player;   // 플레이어 객체
 
-// [추가] 옷장 객체 생성 (원하는 좌표 입력: x, z)
-// 맵의 빈 공간 좌표를 잘 확인해서 넣어주세요. (예: 10.0, 4.0)
-std::vector<Wardrobe> wardrobes; // 단일 객체 삭제 후 벡터로 변경
+// 옷장 벡터
+std::vector<Wardrobe> wardrobes; 
 
-//Ghost
+// 유령 벡터
 std::vector<Ghost> ghosts;
+
+//사운드 매니저
+SoundManager soundManager;
+
+// 유령 BGM 재생 플래그
 bool isGhostBGM = false;
 
+// 유령충돌 플래그
+bool isHit = false; 
+
+// 게임 클리어 플래그
 bool isGameClear = false;
-bool isHit = false; // 유령충돌 플래그
 
 // 조명 관련 변수
 glm::vec3 lightPos(0.0f, 2.0f, 0.0f);
 glm::vec3 lightDirection(0.0f, 0.0f, -1.0f);
-
 #define MAIN_LIGHT 0.2f
 #define GHOST_LIGHT 0.2f
 float ambient = MAIN_LIGHT;
@@ -51,8 +55,6 @@ float ambient = MAIN_LIGHT;
 // 키보드 입력 상태 관리
 bool keyState[256] = { false };
 
-// [추가] 사운드 매니저 객체 생성
-SoundManager soundManager;
 
 // --- 함수 선언 ---
 void MakeVertexShaders();
@@ -68,7 +70,7 @@ void MouseMotion(int x, int y);
 void LoadOBJ(const char* filename);
 char* filetobuf(const char* file);
 
-// 헬퍼 함수: 큐브 그리기
+// 큐브 그리기 함수
 void DrawCube(glm::mat4 modelMat, glm::vec3 color) {
     GLint modelLoc = glGetUniformLocation(shaderProgramID, "model");
     GLint faceColorLoc = glGetUniformLocation(shaderProgramID, "faceColor");
@@ -80,13 +82,12 @@ void DrawCube(glm::mat4 modelMat, glm::vec3 color) {
         glDrawElements(GL_TRIANGLES, model.face_count * 3, GL_UNSIGNED_INT, 0);
 }
 
-
-// [1단계] 시작 화면용 전역 변수 및 함수
-bool isGameStart = false; // 게임 시작 여부 (false=타이틀, true=게임)
+// 시작 화면용 전역 변수 및 함수
+bool isGameStart = false; 
 Ghost titleGhost(glm::vec3(5.0f, -0.5f, 5.0f)); // 타이틀 화면용 유령
 float titleTime = 0.0f; // 애니메이션 시간
 
-// 글자 그리기 헬퍼 함수
+// 글자 그리기 함수
 void DrawBitmapChar(const int* bitmap, glm::vec3 startPos, glm::vec3 color) {
     for (int y = 0; y < 5; ++y) {
         for (int x = 0; x < 5; ++x) {
@@ -124,9 +125,7 @@ void InitWardrobes(int count) {
     int placedCount = 0;
     int attempts = 0;
 
-    // [계산] 옷장을 중심에서 얼마만큼 밀어야 벽에 딱 붙는지 계산
-    // WALL_SIZE가 4.0f라면 반은 2.0f, 옷장 뒤쪽 깊이는 0.8f 이므로
-    // 중심에서 1.2f만큼 밀면 벽과 정확히 맞닿습니다.
+    // 옷장을 중심에서 얼마만큼 밀어야 벽에 딱 붙는지 계산
     float offset = (WALL_SIZE / 2.0f) - 0.8f;
 
     while (placedCount < count && attempts < 1000) {
@@ -134,10 +133,10 @@ void InitWardrobes(int count) {
         int x = dis(gen);
         int z = dis(gen);
 
-        // 1. 현재 위치가 길(0)이어야 함
+        // 현재 위치가 길(0)이어야 됨
         if (maze.mapData[z][x] != 0) continue;
 
-        // 2. 이미 옷장이 있는지 체크 (겹침 방지)
+        // 이미 옷장이 있는지 체크 (겹침 방지)
         bool alreadyExists = false;
         for (auto& w : wardrobes) {
             if (glm::distance(glm::vec3(x * WALL_SIZE, 0, z * WALL_SIZE), glm::vec3(w.GetPos().x, 0, w.GetPos().z)) < 2.0f)
@@ -145,33 +144,29 @@ void InitWardrobes(int count) {
         }
         if (alreadyExists) continue;
 
-        // 3. 4방향을 검사하여 벽을 찾음
+        // 4방향을 검사하여 벽을 찾음
         float wx = x * WALL_SIZE;
         float wz = z * WALL_SIZE;
         bool placed = false;
 
         // [오른쪽(X+1)이 벽] -> 옷장 뒤(+X)가 오른쪽을 봐야 함 (Rot: 0도)
-        // 위치: 중심에서 오른쪽으로 offset만큼 이동
         if (maze.mapData[z][x + 1] == 1) {
             wardrobes.emplace_back(wx + offset, wz, 0.0f);
             placed = true;
         }
         // [왼쪽(X-1)이 벽] -> 옷장 뒤가 왼쪽(-X)을 봐야 함 (Rot: 180도)
-        // 위치: 중심에서 왼쪽으로 offset만큼 이동
         else if (maze.mapData[z][x - 1] == 1) {
             wardrobes.emplace_back(wx - offset, wz, 180.0f);
             placed = true;
         }
         // [아래(Z+1)가 벽] -> 옷장 뒤가 아래(+Z)를 봐야 함 (Rot: -90도)
         // GLM 회전: -90도 회전 시 Local +X 가 World +Z가 됨
-        // 위치: 중심에서 아래로 offset만큼 이동
         else if (maze.mapData[z + 1][x] == 1) {
             wardrobes.emplace_back(wx, wz + offset, -90.0f);
             placed = true;
         }
         // [위(Z-1)가 벽] -> 옷장 뒤가 위(-Z)를 봐야 함 (Rot: 90도)
         // GLM 회전: 90도 회전 시 Local +X 가 World -Z가 됨
-        // 위치: 중심에서 위로 offset만큼 이동
         else if (maze.mapData[z - 1][x] == 1) {
             wardrobes.emplace_back(wx, wz - offset, 90.0f);
             placed = true;
@@ -186,7 +181,7 @@ void InitWardrobes(int count) {
 
 // UI(HP 바) 그리기 - 우상단
 void DrawHPBar() {
-    glDisable(GL_DEPTH_TEST); // 3D 깊이 테스트 끄기 (맨 앞에 그리기 위해)
+    glDisable(GL_DEPTH_TEST); // 3D 깊이 테스트 끄기
 
     // 2D 투영 행렬 설정
     glm::mat4 ortho = glm::ortho(0.0f, (float)width, 0.0f, (float)height, -1.0f, 1.0f);
@@ -197,33 +192,30 @@ void DrawHPBar() {
     glUniformMatrix4fv(viewLoc, 1, GL_FALSE, glm::value_ptr(viewUI));
     glUniformMatrix4fv(projLoc, 1, GL_FALSE, glm::value_ptr(ortho));
 
-    // 조명 끄기 (UI는 조명 영향을 받지 않아야 선명하게 보임)
+    // 조명 끄기
     glUniform1i(glGetUniformLocation(shaderProgramID, "lightOn"), 0);
 
-    // [설정 값]
+    // 설정 값
     float barWidth = 300.0f;
     float barHeight = 20.0f;
     float margin = 50.0f;
 
     // 우상단 좌표 계산
-    // X: 전체 화면 너비 - 바 길이 - 여백
     float xPos = width - barWidth - margin;
     float yPos = height - margin;
 
-    // [배경 바 (회색)]
-    // DrawCube는 중심점을 기준으로 크기를 키우므로, 위치를 (x + 너비/2)로 잡아야 왼쪽 정렬처럼 보입니다.
+    // 배경 바 (회색)
     glm::mat4 bgModel = glm::translate(glm::mat4(1.0f), glm::vec3(xPos + barWidth / 2, yPos, 0.0f));
     bgModel = glm::scale(bgModel, glm::vec3(barWidth, barHeight, 1.0f));
     DrawCube(bgModel, glm::vec3(0.3f, 0.3f, 0.3f));
 
-    // [HP 게이지 (빨간색)]
-    // 비율 계산 (hp는 int이므로 float 캐스팅 필수)
+    // HP 게이지 (빨간색)
     float ratio = (float)player.hp / 100.0f;
     if (ratio < 0.0f) ratio = 0.0f; // 음수 방지
 
     float currentBarWidth = barWidth * ratio;
 
-    // 게이지 그리기 (왼쪽 정렬 효과를 위해 중심점 계산 주의)
+    // 게이지 그리기
     // 게이지의 중심 = 시작점(xPos) + (현재 길이 / 2)
     glm::mat4 fgModel = glm::translate(glm::mat4(1.0f), glm::vec3(xPos + currentBarWidth / 2, yPos, 0.0f));
     fgModel = glm::scale(fgModel, glm::vec3(currentBarWidth, barHeight, 1.0f));
@@ -233,7 +225,7 @@ void DrawHPBar() {
     glEnable(GL_DEPTH_TEST); // 깊이 테스트 다시 켜기
 }
 
-// UI(스테미너 바) 그리기
+// UI(스테미너 바) 그리기 - 좌상단
 void DrawStaminaBar() {
     glDisable(GL_DEPTH_TEST);
 
@@ -247,7 +239,7 @@ void DrawStaminaBar() {
 
     glUniform1i(glGetUniformLocation(shaderProgramID, "lightOn"), 0);
 
-    // [배경 바]
+	// 배경 바 (회색)
     float barWidth = 300.0f;
     float barHeight = 20.0f;
     float xPos = 50.0f;
@@ -281,9 +273,9 @@ void DrawScene() {
     glUseProgram(shaderProgramID);
     glBindVertexArray(VAO);
 
-    // [2단계] 시작 화면 그리기
+    // 시작 화면 그리기
     if (!isGameStart) {
-        // 1. 카메라 고정 (타이틀용 - 조금 더 멀리 잡아서 전체가 잘 보이게 함)
+        // 카메라 고정
         glm::mat4 view = glm::lookAt(glm::vec3(0.0f, 0.0f, 22.0f), glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 1.0f, 0.0f));
         glm::mat4 proj = glm::perspective(glm::radians(45.0f), (float)width / height, 0.1f, 100.0f);
 
@@ -295,16 +287,14 @@ void DrawScene() {
         glUniform3f(glGetUniformLocation(shaderProgramID, "lightColor"), 1.0f, 1.0f, 1.0f);
         glUniform1f(glGetUniformLocation(shaderProgramID, "ambientStrength"), 1.0f); // 밝게
 
-        // 2. 텍스트 그리기 ("MAZE ESCAPE" 중앙 정렬)
+        // 텍스트 그리기
         glm::vec3 cWhite(1.0f, 1.0f, 1.0f);
 
-        // [MAZE] - 4글자, Y위치: 3.5
         DrawBitmapChar(bmp_M, glm::vec3(-4.5f, 3.5f, 0.0f), cWhite);
         DrawBitmapChar(bmp_A, glm::vec3(-1.5f, 3.5f, 0.0f), cWhite);
         DrawBitmapChar(bmp_Z, glm::vec3(1.5f, 3.5f, 0.0f), cWhite);
         DrawBitmapChar(bmp_E, glm::vec3(4.5f, 3.5f, 0.0f), cWhite);
 
-        // [ESCAPE] - 6글자, Y위치: -0.5
         DrawBitmapChar(bmp_E, glm::vec3(-7.5f, -0.5f, 0.0f), cWhite);
         DrawBitmapChar(bmp_S, glm::vec3(-4.5f, -0.5f, 0.0f), cWhite);
         DrawBitmapChar(bmp_C, glm::vec3(-1.5f, -0.5f, 0.0f), cWhite);
@@ -312,7 +302,7 @@ void DrawScene() {
         DrawBitmapChar(bmp_P, glm::vec3(4.5f, -0.5f, 0.0f), cWhite);
         DrawBitmapChar(bmp_E, glm::vec3(7.5f, -0.5f, 0.0f), cWhite);
 
-        // 3. 타이틀 유령 그리기
+        // 타이틀 유령 그리기
         titleGhost.Draw(shaderProgramID, model);
 
         glutSwapBuffers();
@@ -320,7 +310,7 @@ void DrawScene() {
     }
 
     if (isGameClear) {
-        // 1. 카메라 고정 (타이틀과 동일)
+        // 카메라 고정
         glm::mat4 view = glm::lookAt(glm::vec3(0.0f, 0.0f, 18.0f), glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 1.0f, 0.0f));
         glm::mat4 proj = glm::perspective(glm::radians(45.0f), (float)width / height, 0.1f, 100.0f);
 
@@ -332,24 +322,23 @@ void DrawScene() {
         glUniform3f(glGetUniformLocation(shaderProgramID, "lightColor"), 1.0f, 1.0f, 1.0f);
         glUniform1f(glGetUniformLocation(shaderProgramID, "ambientStrength"), 1.0f);
 
-        // 2. 텍스트 그리기 ("CLEAR!!!")
-        // 노란색으로 축하!
+        // 텍스트 그리기
+        // 노란색
         glm::vec3 cYellow(1.0f, 1.0f, 0.0f);
 
-        // 좌표 계산: 중앙 정렬
+        // 좌표 계산
         DrawBitmapChar(bmp_C, glm::vec3(-7.5f, 0.0f, 0.0f), cYellow);
         DrawBitmapChar(bmp_L, glm::vec3(-4.5f, 0.0f, 0.0f), cYellow);
         DrawBitmapChar(bmp_E, glm::vec3(-1.5f, 0.0f, 0.0f), cYellow);
         DrawBitmapChar(bmp_A, glm::vec3(1.5f, 0.0f, 0.0f), cYellow);
         DrawBitmapChar(bmp_R, glm::vec3(4.5f, 0.0f, 0.0f), cYellow);
 
-        // 느낌표 3개
         DrawBitmapChar(bmp_Excl, glm::vec3(7.5f, 0.0f, 0.0f), cYellow);
         DrawBitmapChar(bmp_Excl, glm::vec3(9.0f, 0.0f, 0.0f), cYellow);
         DrawBitmapChar(bmp_Excl, glm::vec3(10.5f, 0.0f, 0.0f), cYellow);
 
         glutSwapBuffers();
-        return; // 게임 화면 그리지 않고 종료
+        return; 
     }
 
     glm::vec3 cameraPos = player.GetCameraPos();
@@ -387,13 +376,13 @@ void DrawScene() {
     glUniform1f(cutOffLoc, glm::cos(glm::radians(25.0f)));
 	glUniform1f(ambientStrengthLoc, ambient);
 
-    // 1. 플레이어 그리기
+    // 플레이어 그리기
     player.Draw(shaderProgramID, model, DrawCube);
 
-    // 2. 미로 그리기
+    // 미로 그리기
     maze.Draw(shaderProgramID, DrawCube);
 
-    // [추가] 3. 옷장 그리기
+    // 옷장 그리기
     for (auto& w : wardrobes) {
         w.Draw(shaderProgramID, model);
     }
@@ -411,7 +400,7 @@ void DrawScene() {
 
     // UI
     DrawStaminaBar(); // 좌상단
-    DrawHPBar();      // 우상단 [추가됨]
+    DrawHPBar();      // 우상단
 
     glutSwapBuffers();
 }
@@ -419,15 +408,12 @@ void DrawScene() {
 void Timer(int value) {
 
     if (!isGameStart) {
-        // [수정] 유령 애니메이션 변수 업데이트
-        // 이 변수들이 변해야 Ghost::Draw 내부에서 sin/cos 계산이 달라져 팔/꼬리가 움직임
+        // 유령 애니메이션 변수 업데이트
         titleGhost.wobbleTime += 0.1f;
         titleGhost.floatTime += 0.05f;
-
-        // 위아래 둥둥 뜨는 움직임 (floatTime 이용)
         float yPos = -5.0f + sin(titleGhost.floatTime) * 0.5f;
 
-        // 위치 설정 (중앙 하단)
+        // 위치 설정
         titleGhost.SetPos(glm::vec3(0.0f, yPos, 0.0f));
 
         glutPostRedisplay();
@@ -469,7 +455,7 @@ void Timer(int value) {
             if (dist < minDist) minDist = dist;
         }
 
-        // 감지 거리 설정 (예: 10.0f 거리 이내)
+        // 감지 거리 설정
         float detectRange = 15.0f;
         if (minDist < detectRange) {
             if (!isGhostBGM) {
@@ -519,15 +505,14 @@ void Timer(int value) {
 
 void Keyboard(unsigned char key, int x, int y) {
 
-    // [4단계] 엔터키 입력 시 게임 시작 및 초기화
+    // 엔터키 입력 시 게임 시작 및 초기화
     if (!isGameStart) {
         if (key == 13) { // Enter Key
             isGameStart = true;
             std::cout << "GAME START!" << std::endl;
 
-            // [중요] main에 있던 초기화 코드를 여기로 이동
             InitWardrobes(10);
-            ghosts.clear(); // 혹시 모를 중복 방지
+            ghosts.clear(); // 중복 방지
             ghosts.emplace_back(glm::vec3((MAP_SIZE - 1) * WALL_SIZE, -1.0f, (MAP_SIZE - 2) * WALL_SIZE));
             ghosts.emplace_back(glm::vec3(1 * WALL_SIZE, -1.0f, (MAP_SIZE - 2) * WALL_SIZE));
             ghosts.emplace_back(glm::vec3((MAP_SIZE - 2) * WALL_SIZE, -1.0f, 1 * WALL_SIZE));
@@ -557,14 +542,10 @@ void Keyboard(unsigned char key, int x, int y) {
             }
 
             break;
-        case 'j': player.cameraAngle += glm::radians(10.0f); break;
-        case 'k': player.cameraDistance += 0.5f; break;
-        case 'K': if (player.cameraDistance > 2.0f) player.cameraDistance -= 0.5f; break;
         case 'f': // f키로 상호작용
-            // [수정] 1. 플레이어가 바라보는 방향(Vector) 계산
-            // (Target - Position)을 정규화하면 바라보는 방향 벡터가 됩니다.
+            // 플레이어가 바라보는 방향(Vector) 계산
             glm::vec3 cameraFront = glm::normalize(player.GetCameraTarget() - player.GetCameraPos());
-            // [수정] 2. 위치와 방향을 함께 전달하여 벽 파괴 시도
+            // 위치와 방향을 함께 전달하여 벽 파괴 시도
             if (maze.BreakWall(player.pos, cameraFront)) soundManager.PlaySFX("BreakWall.aiff");
 
             for (auto& w : wardrobes) {
@@ -613,7 +594,7 @@ void Reshape(int w, int h) {
     height = h;
 }
 
-// --- 셰이더 및 파일 로딩 (기존 유지) ---
+// --- 셰이더 및 파일 로딩 ---
 char* filetobuf(const char* file) {
     FILE* fptr;
     fopen_s(&fptr, file, "rb");
