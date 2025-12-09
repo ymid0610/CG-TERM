@@ -9,12 +9,10 @@ uniform vec3 lightPos;
 uniform int lightOn;
 uniform vec3 lightDir;    
 uniform float cutOff;
+uniform float ambientStrength;
 
 void main(){
     vec3 result;
-    
-    // 1. 주변광 (Ambient) - 기본 밝기 약간 상향
-    float ambientStrength = 0.3; 
     vec3 ambient = ambientStrength * lightColor;
 
     if(lightOn == 0){ 

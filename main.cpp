@@ -34,7 +34,7 @@ Player player;   // 플레이어 객체
 Wardrobe wardrobe(5.0f, 5.0f);
 
 //Ghost
-Ghost ghost(glm::vec3(3.0f, -1.0f, 5.0f));
+Ghost ghost(glm::vec3((MAP_SIZE - 1) * WALL_SIZE, -1.0f, (MAP_SIZE - 2) * WALL_SIZE));
 bool isGhostBGM = false;
 
 bool isGameClear = false;
@@ -43,6 +43,9 @@ bool isHit = false; // 유령충돌 플래그
 // 조명 관련 변수
 glm::vec3 lightPos(0.0f, 2.0f, 0.0f);
 glm::vec3 lightDirection(0.0f, 0.0f, -1.0f);
+
+float ambient = 0.3f;
+#define GHOST_LIGHT 0.2f
 
 // 키보드 입력 상태 관리
 bool keyState[256] = { false };
@@ -191,6 +194,7 @@ void DrawScene() {
     GLint lightColorLoc = glGetUniformLocation(shaderProgramID, "lightColor");
     GLint lightDirLoc = glGetUniformLocation(shaderProgramID, "lightDir");
     GLint cutOffLoc = glGetUniformLocation(shaderProgramID, "cutOff");
+    GLint ambientStrengthLoc = glGetUniformLocation(shaderProgramID, "ambientStrength");
 
     glUniformMatrix4fv(viewLoc, 1, GL_FALSE, glm::value_ptr(view));
     glUniformMatrix4fv(projLoc, 1, GL_FALSE, glm::value_ptr(proj));
@@ -205,6 +209,7 @@ void DrawScene() {
     glUniform3f(lightColorLoc, 1.0f, 1.0f, 1.0f);
     glUniform3f(lightDirLoc, lightDirection.x, lightDirection.y, lightDirection.z);
     glUniform1f(cutOffLoc, glm::cos(glm::radians(25.0f)));
+	glUniform1f(ambientStrengthLoc, ambient);
 
     // 1. 플레이어 그리기
     player.Draw(shaderProgramID, model, DrawCube);
@@ -215,14 +220,16 @@ void DrawScene() {
     // [추가] 3. 옷장 그리기
     wardrobe.Draw(shaderProgramID, model);
 
-    // test
+    // 바닥 그리기
+    glm::mat4 floorMat = glm::mat4(1.0f);
+    floorMat = glm::translate(floorMat, glm::vec3((MAP_SIZE * WALL_SIZE) / 2 - WALL_SIZE / 2, -1.5f, (MAP_SIZE * WALL_SIZE) / 2 - WALL_SIZE / 2));
+    floorMat = glm::scale(floorMat, glm::vec3(MAP_SIZE * WALL_SIZE, 0.1f, MAP_SIZE * WALL_SIZE));
+    DrawCube(floorMat, glm::vec3(0.2f, 0.2f, 0.2f));
+
+	glUniform1f(ambientStrengthLoc, ambient + GHOST_LIGHT); // 유령 주변 밝게
     ghost.Draw(shaderProgramID, model);
 
-    // 바닥 그리기
-	glm::mat4 floorMat = glm::mat4(1.0f);
-	floorMat = glm::translate(floorMat, glm::vec3((MAP_SIZE * WALL_SIZE) / 2 - WALL_SIZE / 2, -1.5f, (MAP_SIZE * WALL_SIZE) / 2 - WALL_SIZE / 2));
-	floorMat = glm::scale(floorMat, glm::vec3(MAP_SIZE * WALL_SIZE, 0.1f, MAP_SIZE * WALL_SIZE));
-	DrawCube(floorMat, glm::vec3(0.2f, 0.2f, 0.2f));
+
 
     // UI
     DrawStaminaBar(); // 좌상단
