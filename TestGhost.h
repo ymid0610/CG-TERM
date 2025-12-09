@@ -32,6 +32,7 @@ public:
     void Draw(GLuint shaderID, const Model& model);
     std::vector<std::pair<int, int>> FindPath(MazeMap& maze, glm::vec3 startPos, glm::vec3 endPos, int mapSize);
 	glm::vec3 GetPos() const { return pos; }; // 현재 위치 반환
+    void SetPos(glm::vec3 newPos) { pos = newPos; }
 
 private:
     // 내부 그리기 함수

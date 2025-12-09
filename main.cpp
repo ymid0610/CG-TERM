@@ -68,6 +68,48 @@ void MouseMotion(int x, int y);
 void LoadOBJ(const char* filename);
 char* filetobuf(const char* file);
 
+// 헬퍼 함수: 큐브 그리기
+void DrawCube(glm::mat4 modelMat, glm::vec3 color) {
+    GLint modelLoc = glGetUniformLocation(shaderProgramID, "model");
+    GLint faceColorLoc = glGetUniformLocation(shaderProgramID, "faceColor");
+
+    glUniformMatrix4fv(modelLoc, 1, GL_FALSE, glm::value_ptr(modelMat));
+    glUniform3f(faceColorLoc, color.r, color.g, color.b);
+
+    if (model.face_count > 0)
+        glDrawElements(GL_TRIANGLES, model.face_count * 3, GL_UNSIGNED_INT, 0);
+}
+
+
+// [1단계] 시작 화면용 전역 변수 및 함수
+bool isGameStart = false; // 게임 시작 여부 (false=타이틀, true=게임)
+Ghost titleGhost(glm::vec3(5.0f, -0.5f, 5.0f)); // 타이틀 화면용 유령
+float titleTime = 0.0f; // 애니메이션 시간
+
+// 글자 그리기 헬퍼 함수
+void DrawBitmapChar(const int* bitmap, glm::vec3 startPos, glm::vec3 color) {
+    for (int y = 0; y < 5; ++y) {
+        for (int x = 0; x < 5; ++x) {
+            if (bitmap[y * 5 + x] == 1) {
+                glm::mat4 modelMat = glm::mat4(1.0f);
+                modelMat = glm::translate(modelMat, startPos + glm::vec3(x * 0.5f, (4 - y) * 0.5f, 0.0f));
+                modelMat = glm::scale(modelMat, glm::vec3(0.4f, 0.4f, 0.4f));
+                DrawCube(modelMat, color);
+            }
+        }
+    }
+}
+
+// 텍스트 비트맵 데이터
+int bmp_M[] = { 1,0,0,0,1, 1,1,0,1,1, 1,0,1,0,1, 1,0,0,0,1, 1,0,0,0,1 };
+int bmp_A[] = { 0,1,1,1,0, 1,0,0,0,1, 1,1,1,1,1, 1,0,0,0,1, 1,0,0,0,1 };
+int bmp_Z[] = { 1,1,1,1,1, 0,0,0,1,0, 0,0,1,0,0, 0,1,0,0,0, 1,1,1,1,1 };
+int bmp_E[] = { 1,1,1,1,1, 1,0,0,0,0, 1,1,1,1,0, 1,0,0,0,0, 1,1,1,1,1 };
+int bmp_S[] = { 1,1,1,1,1, 1,0,0,0,0, 1,1,1,1,1, 0,0,0,0,1, 1,1,1,1,1 };
+int bmp_C[] = { 1,1,1,1,1, 1,0,0,0,0, 1,0,0,0,0, 1,0,0,0,0, 1,1,1,1,1 };
+int bmp_P[] = { 1,1,1,1,1, 1,0,0,0,1, 1,1,1,1,1, 1,0,0,0,0, 1,0,0,0,0 };
+
+
 void InitWardrobes(int count) {
     wardrobes.clear();
     std::random_device rd;
@@ -137,17 +179,7 @@ void InitWardrobes(int count) {
     std::cout << "옷장 " << placedCount << "개 생성 완료." << std::endl;
 }
 
-// 헬퍼 함수: 큐브 그리기
-void DrawCube(glm::mat4 modelMat, glm::vec3 color) {
-    GLint modelLoc = glGetUniformLocation(shaderProgramID, "model");
-    GLint faceColorLoc = glGetUniformLocation(shaderProgramID, "faceColor");
 
-    glUniformMatrix4fv(modelLoc, 1, GL_FALSE, glm::value_ptr(modelMat));
-    glUniform3f(faceColorLoc, color.r, color.g, color.b);
-
-    if (model.face_count > 0)
-        glDrawElements(GL_TRIANGLES, model.face_count * 3, GL_UNSIGNED_INT, 0);
-}
 
 // UI(HP 바) 그리기 - 우상단
 void DrawHPBar() {
@@ -246,6 +278,44 @@ void DrawScene() {
     glUseProgram(shaderProgramID);
     glBindVertexArray(VAO);
 
+    // [2단계] 시작 화면 그리기
+    if (!isGameStart) {
+        // 1. 카메라 고정 (타이틀용 - 조금 더 멀리 잡아서 전체가 잘 보이게 함)
+        glm::mat4 view = glm::lookAt(glm::vec3(0.0f, 0.0f, 22.0f), glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 1.0f, 0.0f));
+        glm::mat4 proj = glm::perspective(glm::radians(45.0f), (float)width / height, 0.1f, 100.0f);
+
+        glUniformMatrix4fv(glGetUniformLocation(shaderProgramID, "view"), 1, GL_FALSE, glm::value_ptr(view));
+        glUniformMatrix4fv(glGetUniformLocation(shaderProgramID, "proj"), 1, GL_FALSE, glm::value_ptr(proj));
+
+        // 조명 켜기
+        glUniform1i(glGetUniformLocation(shaderProgramID, "lightOn"), 0);
+        glUniform3f(glGetUniformLocation(shaderProgramID, "lightColor"), 1.0f, 1.0f, 1.0f);
+        glUniform1f(glGetUniformLocation(shaderProgramID, "ambientStrength"), 1.0f); // 밝게
+
+        // 2. 텍스트 그리기 ("MAZE ESCAPE" 중앙 정렬)
+        glm::vec3 cWhite(1.0f, 1.0f, 1.0f);
+
+        // [MAZE] - 4글자, Y위치: 3.5
+        DrawBitmapChar(bmp_M, glm::vec3(-4.5f, 3.5f, 0.0f), cWhite);
+        DrawBitmapChar(bmp_A, glm::vec3(-1.5f, 3.5f, 0.0f), cWhite);
+        DrawBitmapChar(bmp_Z, glm::vec3(1.5f, 3.5f, 0.0f), cWhite);
+        DrawBitmapChar(bmp_E, glm::vec3(4.5f, 3.5f, 0.0f), cWhite);
+
+        // [ESCAPE] - 6글자, Y위치: -0.5
+        DrawBitmapChar(bmp_E, glm::vec3(-7.5f, -0.5f, 0.0f), cWhite);
+        DrawBitmapChar(bmp_S, glm::vec3(-4.5f, -0.5f, 0.0f), cWhite);
+        DrawBitmapChar(bmp_C, glm::vec3(-1.5f, -0.5f, 0.0f), cWhite);
+        DrawBitmapChar(bmp_A, glm::vec3(1.5f, -0.5f, 0.0f), cWhite);
+        DrawBitmapChar(bmp_P, glm::vec3(4.5f, -0.5f, 0.0f), cWhite);
+        DrawBitmapChar(bmp_E, glm::vec3(7.5f, -0.5f, 0.0f), cWhite);
+
+        // 3. 타이틀 유령 그리기
+        titleGhost.Draw(shaderProgramID, model);
+
+        glutSwapBuffers();
+        return;
+    }
+
     glm::vec3 cameraPos = player.GetCameraPos();
     glm::vec3 cameraTarget = player.GetCameraTarget();
     glm::vec3 cameraUp = glm::vec3(0.0f, 1.0f, 0.0f);
@@ -311,7 +381,19 @@ void DrawScene() {
 }
 
 void Timer(int value) {
-    if (isGameClear) {
+
+    if (!isGameStart) {
+        // [수정] 유령 애니메이션 변수 업데이트
+        // 이 변수들이 변해야 Ghost::Draw 내부에서 sin/cos 계산이 달라져 팔/꼬리가 움직임
+        titleGhost.wobbleTime += 0.1f;
+        titleGhost.floatTime += 0.05f;
+
+        // 위아래 둥둥 뜨는 움직임 (floatTime 이용)
+        float yPos = -5.0f + sin(titleGhost.floatTime) * 0.5f;
+
+        // 위치 설정 (중앙 하단)
+        titleGhost.SetPos(glm::vec3(0.0f, yPos, 0.0f));
+
         glutPostRedisplay();
         glutTimerFunc(16, Timer, 0);
         return;
@@ -396,6 +478,28 @@ void Timer(int value) {
 }
 
 void Keyboard(unsigned char key, int x, int y) {
+
+    // [4단계] 엔터키 입력 시 게임 시작 및 초기화
+    if (!isGameStart) {
+        if (key == 13) { // Enter Key
+            isGameStart = true;
+            std::cout << "GAME START!" << std::endl;
+
+            // [중요] main에 있던 초기화 코드를 여기로 이동
+            InitWardrobes(10);
+            ghosts.clear(); // 혹시 모를 중복 방지
+            ghosts.emplace_back(glm::vec3((MAP_SIZE - 1) * WALL_SIZE, -1.0f, (MAP_SIZE - 2) * WALL_SIZE));
+            ghosts.emplace_back(glm::vec3(1 * WALL_SIZE, -1.0f, (MAP_SIZE - 2) * WALL_SIZE));
+            ghosts.emplace_back(glm::vec3((MAP_SIZE - 2) * WALL_SIZE, -1.0f, 1 * WALL_SIZE));
+
+            // BGM 재생
+            soundManager.PlayBGM("Dead_Silence_Soundtrack.mp3");
+            soundManager.SetBGMVolume(300);
+        }
+        return;
+    }
+
+
     keyState[key] = true;
     int hide;
 
@@ -552,10 +656,10 @@ int main(int argc, char** argv) {
     LoadOBJ("cube.obj");
     InitBuffers();
 
-    InitWardrobes(10);
-    ghosts.emplace_back(glm::vec3((MAP_SIZE - 1) * WALL_SIZE, -1.0f, (MAP_SIZE - 2) * WALL_SIZE));
-    ghosts.emplace_back(glm::vec3(1 * WALL_SIZE, -1.0f, (MAP_SIZE - 2) * WALL_SIZE));
-    ghosts.emplace_back(glm::vec3((MAP_SIZE - 2) * WALL_SIZE, -1.0f, 1 * WALL_SIZE));
+    //InitWardrobes(10);
+    //ghosts.emplace_back(glm::vec3((MAP_SIZE - 1) * WALL_SIZE, -1.0f, (MAP_SIZE - 2) * WALL_SIZE));
+    //ghosts.emplace_back(glm::vec3(1 * WALL_SIZE, -1.0f, (MAP_SIZE - 2) * WALL_SIZE));
+    //ghosts.emplace_back(glm::vec3((MAP_SIZE - 2) * WALL_SIZE, -1.0f, 1 * WALL_SIZE));
 
     // 배경음악 
     soundManager.PlayBGM("Dead_Silence_Soundtrack.mp3");
