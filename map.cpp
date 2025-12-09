@@ -13,8 +13,6 @@ MazeMap::MazeMap() {
 
 void MazeMap::Init() {
 	GenerateMaze(MAP_SIZE, MAP_SIZE);
-	// 입구와 출구 설정
-	mapData[1][0] = 0; // 입구
 	mapData[MAP_SIZE - 2][MAP_SIZE - 1] = 3; // 출구
 }
 
@@ -78,7 +76,7 @@ bool MazeMap::CheckVictory(float x, float z) {
     int gridX = (int)((x + WALL_SIZE / 2) / WALL_SIZE);
     int gridZ = (int)((z + WALL_SIZE / 2) / WALL_SIZE);
 
-    if (mapData[gridZ][gridX] == 2) return true;
+    if (mapData[gridZ][gridX] == 3) return true;
     return false;
 }
 

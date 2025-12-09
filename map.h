@@ -6,9 +6,9 @@
 #include <gl/glm/glm.hpp>
 
 // 맵의 크기와 셀 하나의 크기 정의
-#define MAP_SIZE 11
-#define WALL_SIZE 4
-#define WALL_HEIGHT 5.0f
+#define MAP_SIZE 33
+#define WALL_SIZE 10.0f
+#define WALL_HEIGHT 10.0f
 
 struct BreakWallInfo {
     bool isBreaking = false;

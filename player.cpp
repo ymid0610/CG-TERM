@@ -4,7 +4,7 @@
 
 Player::Player() {
     // 초기값 설정
-    pos = glm::vec3(2.0f, -1.0f, 2.0f); // 미로 시작 위치
+    pos = glm::vec3(1 * WALL_SIZE, -1.0f, 1 * WALL_SIZE); // 미로 시작 위치
     rotY = 180.0f;
     hp = 100;
 
