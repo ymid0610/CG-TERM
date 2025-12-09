@@ -15,8 +15,9 @@
 #include "ReadObjFile.h"
 #include "map.h"
 #include "player.h"
-#include "wardrobe.h" // [추가] 옷장 헤더 포함
+#include "wardrobe.h" 
 #include "TestGhost.h"
+#include "SoundManager.h"
 
 // --- 전역 변수 ---
 GLint width = 1600, height = 900;
@@ -44,6 +45,9 @@ glm::vec3 lightDirection(0.0f, 0.0f, -1.0f);
 
 // 키보드 입력 상태 관리
 bool keyState[256] = { false };
+
+// [추가] 사운드 매니저 객체 생성
+SoundManager soundManager;
 
 // --- 함수 선언 ---
 void MakeVertexShaders();
@@ -304,14 +308,13 @@ void Keyboard(unsigned char key, int x, int y) {
     case 'j': player.cameraAngle += glm::radians(10.0f); break;
     case 'k': player.cameraDistance += 0.5f; break;
     case 'K': if (player.cameraDistance > 2.0f) player.cameraDistance -= 0.5f; break;
-
-        
     case 'f': // f키로 상호작용
         // [수정] 1. 플레이어가 바라보는 방향(Vector) 계산
         // (Target - Position)을 정규화하면 바라보는 방향 벡터가 됩니다.
         glm::vec3 cameraFront = glm::normalize(player.GetCameraTarget() - player.GetCameraPos());
         // [수정] 2. 위치와 방향을 함께 전달하여 벽 파괴 시도
-        maze.BreakWall(player.pos, cameraFront);
+        if (maze.BreakWall(player.pos, cameraFront)) soundManager.PlaySFX("BreakWall.aiff");
+
         hide = wardrobe.TryInteract(player.pos);
         if (hide == 1) player.isHide = !player.isHide;
 
@@ -434,6 +437,10 @@ int main(int argc, char** argv) {
 
     LoadOBJ("cube.obj");
     InitBuffers();
+
+    // 배경음악 
+    soundManager.PlayBGM("Dead_Silence_Soundtrack.mp3");
+    soundManager.SetBGMVolume(300);
 
     glutDisplayFunc(DrawScene);
     glutReshapeFunc(Reshape);

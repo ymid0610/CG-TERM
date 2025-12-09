@@ -54,3 +54,13 @@ void SoundManager::PlaySFX(std::string fileName) {
         std::cerr << "[SoundManager] 효과음 파일을 찾을 수 없습니다: " << fileName << std::endl;
     }
 }
+
+void SoundManager::SetBGMVolume(int volume) {
+    // volume 값의 범위는 0 (음소거) ~ 1000 (최대) 입니다.
+    // 안전을 위해 범위를 벗어나지 않도록 클램핑(clamping) 처리를 해주는 것이 좋습니다.
+    if (volume < 0) volume = 0;
+    if (volume > 1000) volume = 1000;
+
+    std::string cmd = "setaudio bgm volume to " + std::to_string(volume);
+    mciSendStringA(cmd.c_str(), NULL, 0, NULL);
+}

@@ -30,6 +30,9 @@
     <ClCompile Include="TestGhost.cpp">
       <Filter>소스 파일</Filter>
     </ClCompile>
+    <ClCompile Include="SoundManager.cpp">
+      <Filter>소스 파일</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <None Include="TPfragment.glsl">
@@ -53,6 +56,9 @@
       <Filter>헤더 파일</Filter>
     </ClInclude>
     <ClInclude Include="TestGhost.h">
+      <Filter>헤더 파일</Filter>
+    </ClInclude>
+    <ClInclude Include="SoundManager.h">
       <Filter>헤더 파일</Filter>
     </ClInclude>
   </ItemGroup>

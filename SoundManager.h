@@ -15,4 +15,7 @@ public:
 
     // 효과음 재생 (1회성 - 벽 부수기 등)
     void PlaySFX(std::string fileName);
+
+	// 배경음악 볼륨 설정 (0 ~ 1000)
+    void SetBGMVolume(int volume);
 };
