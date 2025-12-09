@@ -33,3 +33,11 @@ private:
 bool IsCollideWithPlayer(const glm::vec3& ghostPos, const glm::vec3& playerPos);
 
 glm::vec3 GetRandomPathPosition(const MazeMap& maze, int mapSize, float baseHeight);
+
+struct Node {
+    int r, c;
+    int g; // 현재까지의 비용
+    int f; // g + 휴리스틱
+    Node(int r, int c, int g, int f) : r(r), c(c), g(g), f(f) {}
+    bool operator>(const Node& other) const { return f > other.f; }
+};

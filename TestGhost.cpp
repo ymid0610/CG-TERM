@@ -170,34 +170,40 @@ glm::vec3 GetRandomPathPosition(const MazeMap& maze, int mapSize, float baseHeig
     return glm::vec3(worldX, baseHeight, worldZ);
 }
 
-
 std::vector<std::pair<int, int>> Ghost::FindPath(MazeMap& maze, glm::vec3 startPos, glm::vec3 endPos, int mapSize) {
     int sx = static_cast<int>((startPos.x + WALL_SIZE / 2) / WALL_SIZE);
     int sz = static_cast<int>((startPos.z + WALL_SIZE / 2) / WALL_SIZE);
     int ex = static_cast<int>((endPos.x + WALL_SIZE / 2) / WALL_SIZE);
     int ez = static_cast<int>((endPos.z + WALL_SIZE / 2) / WALL_SIZE);
 
-    std::queue<std::pair<int, int>> q;
+    std::priority_queue<Node, std::vector<Node>, std::greater<Node>> open;
     std::unordered_map<int, std::pair<int, int>> parent;
-    std::vector<std::vector<bool>> visited(mapSize, std::vector<bool>(mapSize, false));
+    std::vector<std::vector<int>> cost(mapSize, std::vector<int>(mapSize, INT_MAX));
     int dr[4] = { -1, 1, 0, 0 }, dc[4] = { 0, 0, -1, 1 };
 
-    q.push({ sz, sx });
-    visited[sz][sx] = true;
+    auto heuristic = [&](int r, int c) {
+        return abs(r - ez) + abs(c - ex); // 맨해튼 거리
+        };
 
-    while (!q.empty()) {
-        auto rc = q.front(); q.pop();
-        int r = rc.first;
-        int c = rc.second;
+    open.push(Node(sz, sx, 0, heuristic(sz, sx)));
+    cost[sz][sx] = 0;
+
+    while (!open.empty()) {
+        Node node = open.top(); open.pop();
+        int r = node.r, c = node.c;
         if (r == ez && c == ex) break;
         for (int d = 0; d < 4; ++d) {
             int nr = r + dr[d], nc = c + dc[d];
-            if (nr >= 0 && nr < mapSize && nc >= 0 && nc < mapSize &&
-                !visited[nr][nc] &&
-                (maze.maze[nr * mapSize + nc] == 0 || maze.maze[nr * mapSize + nc] == 2)) { // 길 또는 부서진 벽
-                visited[nr][nc] = true;
-                parent[nr * mapSize + nc] = { r, c };
-                q.push({ nr, nc });
+            if (nr >= 0 && nr < mapSize && nc >= 0 && nc < mapSize) {
+                int cell = maze.mapData[nr][nc];
+                if (cell != 0) continue; // 길(0)만 통과 가능
+                int moveCost = 1;
+                int newCost = cost[r][c] + moveCost;
+                if (newCost < cost[nr][nc]) {
+                    cost[nr][nc] = newCost;
+                    parent[nr * mapSize + nc] = { r, c };
+                    open.push(Node(nr, nc, newCost, newCost + heuristic(nr, nc)));
+                }
             }
         }
     }
