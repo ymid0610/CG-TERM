@@ -21,7 +21,7 @@ public:
     glm::vec3 baseColor;    // 기본 색상
 
     Ghost(glm::vec3 startPos);
-    void Update(glm::vec3 targetPos, MazeMap& maze);
+    bool Update(glm::vec3 targetPos, MazeMap& maze);
     void Draw(GLuint shaderID, const Model& model);
     std::vector<std::pair<int, int>> FindPath(MazeMap& maze, glm::vec3 startPos, glm::vec3 endPos, int mapSize);
 

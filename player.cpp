@@ -6,6 +6,7 @@ Player::Player() {
     // 초기값 설정
     pos = glm::vec3(2.0f, -1.0f, 2.0f); // 미로 시작 위치
     rotY = 180.0f;
+    hp = 100;
 
     cameraAngle = 0.0f;
     cameraDistance = 3.0f;

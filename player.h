@@ -14,6 +14,7 @@ public:
     // --- 멤버 변수 ---
     glm::vec3 pos;          // 위치
     float rotY;             // 회전 (Y축)
+	int hp;               // 체력
 
     // 카메라 관련
     float cameraAngle;

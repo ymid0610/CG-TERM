@@ -36,6 +36,7 @@ Wardrobe wardrobe(5.0f, 5.0f);
 Ghost ghost(glm::vec3(3.0f, -1.0f, 5.0f));
 
 bool isGameClear = false;
+bool isHit = false; // 유령충돌 플래그
 
 // 조명 관련 변수
 glm::vec3 lightPos(0.0f, 2.0f, 0.0f);
@@ -68,6 +69,55 @@ void DrawCube(glm::mat4 modelMat, glm::vec3 color) {
 
     if (model.face_count > 0)
         glDrawElements(GL_TRIANGLES, model.face_count * 3, GL_UNSIGNED_INT, 0);
+}
+
+// UI(HP 바) 그리기 - 우상단
+void DrawHPBar() {
+    glDisable(GL_DEPTH_TEST); // 3D 깊이 테스트 끄기 (맨 앞에 그리기 위해)
+
+    // 2D 투영 행렬 설정
+    glm::mat4 ortho = glm::ortho(0.0f, (float)width, 0.0f, (float)height, -1.0f, 1.0f);
+    glm::mat4 viewUI = glm::mat4(1.0f);
+
+    GLint viewLoc = glGetUniformLocation(shaderProgramID, "view");
+    GLint projLoc = glGetUniformLocation(shaderProgramID, "proj");
+    glUniformMatrix4fv(viewLoc, 1, GL_FALSE, glm::value_ptr(viewUI));
+    glUniformMatrix4fv(projLoc, 1, GL_FALSE, glm::value_ptr(ortho));
+
+    // 조명 끄기 (UI는 조명 영향을 받지 않아야 선명하게 보임)
+    glUniform1i(glGetUniformLocation(shaderProgramID, "lightOn"), 0);
+
+    // [설정 값]
+    float barWidth = 300.0f;
+    float barHeight = 20.0f;
+    float margin = 50.0f;
+
+    // 우상단 좌표 계산
+    // X: 전체 화면 너비 - 바 길이 - 여백
+    float xPos = width - barWidth - margin;
+    float yPos = height - margin;
+
+    // [배경 바 (회색)]
+    // DrawCube는 중심점을 기준으로 크기를 키우므로, 위치를 (x + 너비/2)로 잡아야 왼쪽 정렬처럼 보입니다.
+    glm::mat4 bgModel = glm::translate(glm::mat4(1.0f), glm::vec3(xPos + barWidth / 2, yPos, 0.0f));
+    bgModel = glm::scale(bgModel, glm::vec3(barWidth, barHeight, 1.0f));
+    DrawCube(bgModel, glm::vec3(0.3f, 0.3f, 0.3f));
+
+    // [HP 게이지 (빨간색)]
+    // 비율 계산 (hp는 int이므로 float 캐스팅 필수)
+    float ratio = (float)player.hp / 100.0f;
+    if (ratio < 0.0f) ratio = 0.0f; // 음수 방지
+
+    float currentBarWidth = barWidth * ratio;
+
+    // 게이지 그리기 (왼쪽 정렬 효과를 위해 중심점 계산 주의)
+    // 게이지의 중심 = 시작점(xPos) + (현재 길이 / 2)
+    glm::mat4 fgModel = glm::translate(glm::mat4(1.0f), glm::vec3(xPos + currentBarWidth / 2, yPos, 0.0f));
+    fgModel = glm::scale(fgModel, glm::vec3(currentBarWidth, barHeight, 1.0f));
+
+    DrawCube(fgModel, glm::vec3(1.0f, 0.0f, 0.0f)); // 빨간색
+
+    glEnable(GL_DEPTH_TEST); // 깊이 테스트 다시 켜기
 }
 
 // UI(스테미너 바) 그리기
@@ -163,8 +213,9 @@ void DrawScene() {
     // test
     ghost.Draw(shaderProgramID, model);
 
-    // 5. UI
-    DrawStaminaBar();
+    // UI
+    DrawStaminaBar(); // 좌상단
+    DrawHPBar();      // 우상단 [추가됨]
 
     glutSwapBuffers();
 }
@@ -205,7 +256,7 @@ void Timer(int value) {
     // 플레이어의 위치(player.pos)를 타겟으로 주고, 충돌 체크용 맵(maze)을 넘깁니다.
     // ==========================================================
     if (player.isHide == false) {
-        ghost.Update(player.pos, maze);
+        isHit = ghost.Update(player.pos, maze);
     }
     else {
 		// 맵의 도착지점 좌표 계산
@@ -217,10 +268,18 @@ void Timer(int value) {
 				}
 			}
 		}
-		ghost.Update(exitPos, maze);
+		isHit = ghost.Update(exitPos, maze);
     }
-    
 
+    if (isHit) {
+        player.hp -= 10;
+        std::cout << "유령과 충돌!" << std::endl;
+        std::cout << "남은체력 : " << player.hp << std::endl;
+        if (player.hp <= 0) {
+            exit(0);
+        }
+        isHit = false;
+    }
 
     // 승리 조건 체크
     if (maze.CheckVictory(player.pos.x, player.pos.z)) {

@@ -45,14 +45,14 @@ void Ghost::DrawBox(GLuint shaderID, const Model& model, glm::mat4 modelMat, glm
     glDisable(GL_BLEND);
 }
 
-void Ghost::Update(glm::vec3 playerPos, MazeMap& maze) {
+bool Ghost::Update(glm::vec3 playerPos, MazeMap& maze) {
 
     // 플레이어와 충돌 체크
     if (IsCollideWithPlayer(pos, playerPos)) {
         pos = GetRandomPathPosition(maze, MAP_SIZE, baseHeight);
         floatTime = 0.0f; // 애니메이션 초기화(선택)
         wobbleTime = 0.0f;
-        return; // 이동 로직 생략
+        return true; // 이동 로직 생략
     }
     
 	// 1. 플레이어 쪽으로 이동
@@ -90,6 +90,8 @@ void Ghost::Update(glm::vec3 playerPos, MazeMap& maze) {
     floatTime += 0.05f;
     wobbleTime += 0.1f;
     pos.y = baseHeight + sin(floatTime) * 0.3f; // 위아래 움직임
+
+	return false; // 충돌 없음
 }
 
 void Ghost::Draw(GLuint shaderID, const Model& model) {
