@@ -578,6 +578,13 @@ void Keyboard(unsigned char key, int x, int y) {
 
             break;
         case 'q': exit(0); break;
+        case 'l':
+			// 디버그용 : 출구 위치로 순간이동
+			player.pos = glm::vec3((MAP_SIZE - 1) * WALL_SIZE, -1.0f, (MAP_SIZE - 2) * WALL_SIZE);
+            soundManager.PlayBGM("Dead_Silence_Soundtrack.mp3");
+            soundManager.SetBGMVolume(300);
+            isGameClear = true;
+			break;
         }
     }
     else {
@@ -702,11 +709,6 @@ int main(int argc, char** argv) {
 
     LoadOBJ("cube.obj");
     InitBuffers();
-
-    //InitWardrobes(10);
-    //ghosts.emplace_back(glm::vec3((MAP_SIZE - 1) * WALL_SIZE, -1.0f, (MAP_SIZE - 2) * WALL_SIZE));
-    //ghosts.emplace_back(glm::vec3(1 * WALL_SIZE, -1.0f, (MAP_SIZE - 2) * WALL_SIZE));
-    //ghosts.emplace_back(glm::vec3((MAP_SIZE - 2) * WALL_SIZE, -1.0f, 1 * WALL_SIZE));
 
     // 배경음악 
     soundManager.PlayBGM("Dead_Silence_Soundtrack.mp3");

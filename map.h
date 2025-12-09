@@ -6,7 +6,7 @@
 #include <gl/glm/glm.hpp>
 
 // 맵의 크기와 셀 하나의 크기 정의
-#define MAP_SIZE 11
+#define MAP_SIZE 13
 #define WALL_SIZE 8.0f
 #define WALL_HEIGHT 5.0f
 #define PLAYER_RADIUS 0.25f // 플레이어의 반지름(혹은 박스의 절반 폭)
