@@ -113,16 +113,16 @@ void Wardrobe::Draw(GLuint shaderID, const Model& model) {
     glm::vec3 lightWood = glm::vec3(0.45f, 0.3f, 0.1f);
     glm::vec3 gold = glm::vec3(0.8f, 0.7f, 0.0f);
 
-    // [상호작용 범위 시각화] - 투명한 초록 바닥
-    glEnable(GL_BLEND);
-    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+    //// [상호작용 범위 시각화] - 투명한 초록 바닥
+    //glEnable(GL_BLEND);
+    //glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 
-    // 상호작용 가능한 영역 표시 (옷장 앞쪽 바닥)
-    glm::mat4 zone = glm::translate(glm::mat4(1.0f), glm::vec3(posX - 0.75f, -1.95f, posZ));
-    glm::mat4 zoneScale = glm::scale(zone, glm::vec3(1.5f, 0.01f, 6.0f));
-    DrawBox(shaderID, model, zoneScale, glm::vec3(0.0f, 1.0f, 0.0f));
+    //// 상호작용 가능한 영역 표시 (옷장 앞쪽 바닥)
+    //glm::mat4 zone = glm::translate(glm::mat4(1.0f), glm::vec3(posX - 0.75f, -1.95f, posZ));
+    //glm::mat4 zoneScale = glm::scale(zone, glm::vec3(1.5f, 0.01f, 6.0f));
+    //DrawBox(shaderID, model, zoneScale, glm::vec3(0.0f, 1.0f, 0.0f));
 
-    glDisable(GL_BLEND);
+    //glDisable(GL_BLEND);
 
     // --- 옷장 몸체 그리기 ---
     // 뒷면
