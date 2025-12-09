@@ -62,15 +62,25 @@ void Player::Update(bool keyState[], MazeMap& maze) {
             if (currentStamina < maxStamina) currentStamina += 0.2f;
         }
 
-        // [충돌 처리]
+        // [동시 이동 충돌 처리]
         float nextX = pos.x + moveDirX * currentSpeed;
         float nextZ = pos.z + moveDirZ * currentSpeed;
 
-        if (!maze.CheckCollision(nextX, pos.z)) {
+        // 목표 위치에서 충돌 체크
+        if (!maze.CheckCollision(nextX, nextZ)) {
             pos.x = nextX;
-        }
-        if (!maze.CheckCollision(pos.x, nextZ)) {
             pos.z = nextZ;
+        }
+        else {
+            // X축만 이동 가능하면 X축만 이동
+            if (!maze.CheckCollision(nextX, pos.z)) {
+                pos.x = nextX;
+            }
+            // Z축만 이동 가능하면 Z축만 이동
+            if (!maze.CheckCollision(pos.x, nextZ)) {
+                pos.z = nextZ;
+            }
+            // 둘 다 충돌이면 멈춤
         }
     }
     else {

@@ -58,17 +58,22 @@ void MazeMap::Draw(GLuint shaderProgramID, void (*DrawCubeFunc)(glm::mat4, glm::
 
 // 충돌 감지 (매우 중요)
 bool MazeMap::CheckCollision(float x, float z) {
-    // 월드 좌표 -> 배열 인덱스로 변환
-    // 큐브의 중심이 좌표이므로 반올림을 통해 가장 가까운 칸을 찾습니다.
-    int gridX = (int)((x + WALL_SIZE / 2) / WALL_SIZE);
-    int gridZ = (int)((z + WALL_SIZE / 2) / WALL_SIZE);
+    // 플레이어의 경계(반지름)를 고려한 충돌 체크
+    float minX = x - PLAYER_RADIUS;
+    float maxX = x + PLAYER_RADIUS;
+    float minZ = z - PLAYER_RADIUS;
+    float maxZ = z + PLAYER_RADIUS;
 
-    // 배열 범위 체크
-    if (gridX < 0 || gridX >= MAP_SIZE || gridZ < 0 || gridZ >= MAP_SIZE) return true;
+    // 4방향 경계 체크
+    for (float testX : {minX, maxX}) {
+        for (float testZ : {minZ, maxZ}) {
+            int gridX = (int)((testX + WALL_SIZE / 2) / WALL_SIZE);
+            int gridZ = (int)((testZ + WALL_SIZE / 2) / WALL_SIZE);
 
-    // 벽1, 2이면 충돌로 간주
-    if (mapData[gridZ][gridX] == 1 || mapData[gridZ][gridX] == 2) return true;
-
+            if (gridX < 0 || gridX >= MAP_SIZE || gridZ < 0 || gridZ >= MAP_SIZE) return true;
+            if (mapData[gridZ][gridX] == 1 || mapData[gridZ][gridX] == 2) return true;
+        }
+    }
     return false;
 }
 
