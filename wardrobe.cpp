@@ -60,7 +60,7 @@ void Wardrobe::Update(glm::vec3& playerPos, float& cameraAngle, float& pitch, in
 
     case STATE_HIDDEN:
         targetAngle = 25.0f; // 틈새 확보
-        viewMode = 1;        // 강제 1인칭
+        // viewMode = 1;        // 강제 1인칭
         playerPos = glm::vec3(hiddenX, -1.0f, hiddenZ); // 위치 고정
         break;
 

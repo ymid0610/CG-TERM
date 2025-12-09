@@ -207,6 +207,18 @@ void Timer(int value) {
     if (player.isHide == false) {
         ghost.Update(player.pos, maze);
     }
+    else {
+		// ¸ÊÀÇ µµÂøÁöÁ¡ ÁÂÇ¥ °è»ê
+		glm::vec3 exitPos;
+		for (int z = 0; z < MAP_SIZE; z++) {
+			for (int x = 0; x < MAP_SIZE; x++) {
+				if (maze.mapData[z][x] == 3) {
+					exitPos = glm::vec3(x * WALL_SIZE, -1.0f, z * WALL_SIZE);
+				}
+			}
+		}
+		ghost.Update(exitPos, maze);
+    }
     
 
 

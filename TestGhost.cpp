@@ -191,7 +191,8 @@ std::vector<std::pair<int, int>> Ghost::FindPath(MazeMap& maze, glm::vec3 startP
         for (int d = 0; d < 4; ++d) {
             int nr = r + dr[d], nc = c + dc[d];
             if (nr >= 0 && nr < mapSize && nc >= 0 && nc < mapSize &&
-                !visited[nr][nc] && maze.maze[nr * mapSize + nc] == 0) {
+                !visited[nr][nc] &&
+                (maze.maze[nr * mapSize + nc] == 0 || maze.maze[nr * mapSize + nc] == 2)) { // 길 또는 부서진 벽
                 visited[nr][nc] = true;
                 parent[nr * mapSize + nc] = { r, c };
                 q.push({ nr, nc });
@@ -212,4 +213,3 @@ std::vector<std::pair<int, int>> Ghost::FindPath(MazeMap& maze, glm::vec3 startP
     std::reverse(path.begin(), path.end());
     return path;
 }
-

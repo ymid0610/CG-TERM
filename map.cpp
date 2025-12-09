@@ -15,13 +15,14 @@ void MazeMap::Init() {
 	GenerateMaze(MAP_SIZE, MAP_SIZE);
 	// 입구와 출구 설정
 	mapData[1][0] = 0; // 입구
-	mapData[MAP_SIZE - 2][MAP_SIZE - 1] = 2; // 출구
+	mapData[MAP_SIZE - 2][MAP_SIZE - 1] = 3; // 출구
 }
 
 // 맵 그리기
 void MazeMap::Draw(GLuint shaderProgramID, void (*DrawCubeFunc)(glm::mat4, glm::vec3)) {
     for (int z = 0; z < MAP_SIZE; z++) {
         for (int x = 0; x < MAP_SIZE; x++) {
+			if (mapData[z][x] == 0) continue; // 길은 그리지 않음
             if (mapData[z][x] == 1) { // 벽 그리기
                 glm::mat4 modelMat = glm::mat4(1.0f);
                 // 배열의 인덱스를 월드 좌표로 변환 (중앙 정렬을 위해 오프셋 조정 가능)
@@ -34,13 +35,13 @@ void MazeMap::Draw(GLuint shaderProgramID, void (*DrawCubeFunc)(glm::mat4, glm::
                 // 회색 벽
                 DrawCubeFunc(modelMat, glm::vec3(0.5f, 0.5f, 0.5f));
             }
-            else if (mapData[z][x] == 2) { // 도착 지점 (초록색 바닥)
+            else if (mapData[z][x] == 2) { // 부셔지는 벽 그리기
                 glm::mat4 modelMat = glm::mat4(1.0f);
                 float worldX = x * WALL_SIZE;
                 float worldZ = z * WALL_SIZE;
 
-                modelMat = glm::translate(modelMat, glm::vec3(worldX, -1.0f, worldZ)); // 바닥에 깔기
-                modelMat = glm::scale(modelMat, glm::vec3(WALL_SIZE, 0.1f, WALL_SIZE));
+                modelMat = glm::translate(modelMat, glm::vec3(worldX, 0.0f, worldZ)); // 바닥에 깔기
+                modelMat = glm::scale(modelMat, glm::vec3(WALL_SIZE, WALL_HEIGHT, WALL_SIZE));
 
                 DrawCubeFunc(modelMat, glm::vec3(0.0f, 1.0f, 0.0f)); // 초록색
             }
@@ -60,6 +61,12 @@ bool MazeMap::CheckCollision(float x, float z) {
 
     // 벽(1)이면 충돌로 간주
     if (mapData[gridZ][gridX] == 1) return true;
+
+	if (mapData[gridZ][gridX] == 2) {
+		// 부셔지는 벽과 충돌 시 벽을 없앰
+		mapData[gridZ][gridX] = 0;
+		return false; // 충돌 후에는 통과 가능
+	}
 
     return false;
 }
@@ -115,5 +122,30 @@ bool MazeMap::GenerateMaze(int rows, int cols) {
         }
     }
 
+	// 벽을 부셔지는 벽(2)으로 설정
+	GenerateBreakableWalls(0.2f); // 20% 확률로 부셔지는 벽 생성
+
+	// 테두리는 항상 벽으로 설정
+	for (int i = 0; i < MAP_SIZE; i++) {
+		mapData[0][i] = 1;
+		mapData[MAP_SIZE - 1][i] = 1;
+		mapData[i][0] = 1;
+		mapData[i][MAP_SIZE - 1] = 1;
+	}
+
     return true;
+}
+
+bool MazeMap::GenerateBreakableWalls(float probability) {
+	std::random_device rd;
+	std::mt19937 gen(rd());
+	std::uniform_real_distribution<> dis(0.0, 1.0);
+	for (int z = 1; z < MAP_SIZE - 1; ++z) {
+		for (int x = 1; x < MAP_SIZE - 1; ++x) {
+			if (mapData[z][x] == 1 && dis(gen) < probability) {
+				mapData[z][x] = 2; // 부셔지는 벽으로 설정
+			}
+		}
+	}
+	return true;
 }

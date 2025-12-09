@@ -23,4 +23,5 @@ public:
     bool CheckCollision(float x, float z); // 이동하려는 위치가 벽인지 확인
     bool CheckVictory(float x, float z);   // 도착했는지 확인
 	bool GenerateMaze(int rows, int cols); // 미로 생성 함수
+	bool GenerateBreakableWalls(float probability);
 };
