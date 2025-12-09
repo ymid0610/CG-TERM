@@ -574,7 +574,7 @@ int main(int argc, char** argv) {
     LoadOBJ("cube.obj");
     InitBuffers();
 
-    InitWardrobes(5);
+    InitWardrobes(10);
 
     // πË∞Ê¿Ωæ« 
     soundManager.PlayBGM("Dead_Silence_Soundtrack.mp3");
